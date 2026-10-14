@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>xPrototype - Thiết kế UI/UX XD</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Segoe UI", sans-serif; background:#2e2e2e; color:white; height:100vh; display:flex; flex-direction:column; }
+        .topbar { height:40px; background:#ff61f6; color:#220022; display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:600; gap:8px; }
+        .workspace { flex:1; display:flex; }
+        .canvas { flex:1; background:#1a1a1a; display:flex; align-items:center; justify-content:center; gap:40px; overflow:auto; padding:40px; }
+        .phone-frame { width:390px; height:844px; background:#000; border-radius:50px; padding:12px; box-shadow:0 20px 60px rgba(255,97,246,0.2); position:relative; }
+        .phone-screen { width:100%; height:100%; background:white; border-radius:40px; overflow:hidden; color:#222; }
+        .phone-notch { position:absolute; top:20px; left:50%; transform:translateX(-50%); width:120px; height:30px; background:#000; border-radius:0 0 20px 20px; z-index:10; }
+        .app-bar { background:linear-gradient(135deg, #ff61f6, #a855f7); color:white; padding:60px 20px 20px; }
+        .app-bar h2 { font-size:22px; font-weight:700; }
+        .card { margin:16px; padding:16px; background:#f5f5f5; border-radius:12px; }
+        .card-img { height:120px; background:linear-gradient(135deg, #667eea, #764ba2); border-radius:8px; margin-bottom:12px; }
+        
+        .right-props { width:260px; background:#3a3a3a; padding:12px; border-left:1px solid #2a2a2a; }
+        .comp-panel { padding:12px 0; border-bottom:1px solid #4a4a4a; }
+        .comp-item { padding:8px; background:#4a4a4a; border-radius:6px; margin-bottom:6px; font-size:12px; cursor:pointer; }
+        .comp-item:hover { background:#555; }
+        
+        .statusbar { height:22px; background:#ff61f6; color:#220022; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; font-weight:500; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span>💜 xPrototype CC</span>
+        <span style="font-weight:400; margin-left:8px; opacity:0.8;">UI/UX Design · Wireframe · Prototype</span>
+        <div style="margin-left:auto; font-size:12px; font-weight:400;">▶️ Preview · ✨ AI Generate UI</div>
+    </div>
+
+    <div class="workspace">
+        <div style="width:60px; background:#333; padding:8px; display:flex; flex-direction:column; gap:4px;">
+            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">🖱️</button>
+            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">▭</button>
+            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">T</button>
+            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">🖼️</button>
+        </div>
+
+        <div class="canvas">
+            <div class="phone-frame">
+                <div class="phone-notch"></div>
+                <div class="phone-screen">
+                    <div class="app-bar">
+                        <h2>Xin chào!</h2>
+                        <p style="opacity:0.9; margin-top:4px;">Khám phá thiết kế UI/UX</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-img"></div>
+                        <div style="font-weight:600; margin-bottom:4px;">Tiêu đề card</div>
+                        <div style="font-size:12px; color:#666;">Mô tả ngắn gọn về nội dung card này</div>
+                    </div>
+                    <div style="padding:0 16px; display:flex; gap:8px;">
+                        <div style="flex:1; height:80px; background:#f0f0f0; border-radius:8px;"></div>
+                        <div style="flex:1; height:80px; background:#f0f0f0; border-radius:8px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div style="width:800px; height:600px; background:white; border-radius:8px; color:#222; padding:40px;">
+                <h1 style="font-size:48px; font-weight:800; background:linear-gradient(90deg, #ff61f6, #a855f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Web Design</h1>
+                <p style="font-size:18px; color:#666; margin-top:16px; max-width:500px;">Thiết kế giao diện web, desktop, mobile với đầy đủ components, auto layout, prototype tương tác.</p>
+                <button style="margin-top:24px; padding:12px 32px; background:#ff61f6; color:white; border:none; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer;">Bắt đầu</button>
+            </div>
+        </div>
+
+        <div class="right-props">
+            <div class="comp-panel">
+                <div style="font-size:11px; text-transform:uppercase; color:#999; margin-bottom:8px;">Components</div>
+                <div class="comp-item">🔘 Button</div>
+                <div class="comp-item">📝 Input field</div>
+                <div class="comp-item">🃏 Card</div>
+                <div class="comp-item">🧭 Navigation</div>
+                <div class="comp-item">📱 App Bar</div>
+                <div class="comp-item">🔔 Notification</div>
+                <div class="comp-item">✨ AI Generate</div>
+            </div>
+            <div class="comp-panel">
+                <div style="font-size:11px; text-transform:uppercase; color:#999; margin-bottom:8px;">Layers</div>
+                <div class="comp-item">📱 Mobile Frame</div>
+                <div class="comp-item" style="margin-left:12px;">📱 App Bar</div>
+                <div class="comp-item" style="margin-left:12px;">📇 Card 1</div>
+                <div class="comp-item" style="margin-left:12px;">📐 Grid</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span>Untitled.xd</span>
+        <span>iPhone 14 Pro · Desktop</span>
+        <span style="margin-left:auto;">Thiết kế UI/UX, prototype tương tác. AI có thể sinh giao diện tự động từ mô tả</span>
+    </div>
+</body>
+</html>

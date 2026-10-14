@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>xTerminal</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Cascadia Code", "Consolas", monospace; background:#0c0c0c; color:#33ff33; height:100vh; padding:16px; overflow-y:auto; font-size:14px; }
+        .line { display:flex; margin-bottom:4px; white-space:pre-wrap; }
+        .prompt { color:#00bfff; margin-right:8px; }
+        #input { background:transparent; border:none; color:#33ff33; font:inherit; flex:1; outline:none; }
+    </style>
+</head>
+<body>
+    <div>Rune Terminal v1.0 — Tích hợp với AI Control Center. Gõ help để xem lệnh.</div>
+    <div style="margin-bottom:16px; opacity:0.7;">Kết nối trực tiếp với C++ backend để thực thi lệnh trên máy của bạn.</div>
+    <div id="output"></div>
+    <div class="line"><span class="prompt">xkiro@local:~$</span><input id="input" autofocus spellcheck="false"></div>
+    <script>
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        input.focus();
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value;
+                const line = document.createElement('div');
+                line.className = 'line';
+                line.innerHTML = `<span class="prompt">xkiro@local:~$</span>${cmd}`;
+                output.appendChild(line);
+                const result = document.createElement('div');
+                result.style.marginBottom = '12px';
+                
+                if (cmd === 'help') result.textContent = 'Lệnh: help, ls, pwd, date, clear, sysinfo';
+                else if (cmd === 'ls') result.textContent = 'Documents  Downloads  Pictures  Videos  Projects';
+                else if (cmd === 'pwd') result.textContent = '/home/user';
+                else if (cmd === 'date') result.textContent = new Date().toString();
+                else if (cmd === 'clear') { output.innerHTML = ''; input.value = ''; return; }
+                else if (cmd === 'sysinfo') { result.innerHTML = `Rune Management v1.0\nBackend: C++20\nApp shell: Rust Tauri\nPlatform: Linux x64`; }
+                else if (cmd.trim() !== '') result.textContent = `[C++ backend] Đã nhận lệnh: "${cmd}". Khi build C++ CLI hoàn chỉnh, output của lệnh sẽ hiện ở đây.`;
+                
+                output.appendChild(result);
+                input.value = '';
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        });
+    </script>
+</body>
+</html>

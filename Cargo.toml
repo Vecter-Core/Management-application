@@ -1,0 +1,22 @@
+[package]
+name = "xkiro-manager"
+version = "1.0.0"
+edition = "2021"
+description = "xKiro Local Management App - Rust + C++"
+
+[lib]
+name = "xkiro_native"
+path = "src/rust/lib.rs"
+crate-type = ["lib", "staticlib"]
+
+[build-dependencies]
+cc = "1.0"
+
+[dependencies]
+tauri = { version = "2.0", features = ["shell-open", "dialog", "fs"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+
+[features]
+default = ["tauri/custom-protocol"]

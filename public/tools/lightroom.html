@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>xLight - Chỉnh sửa ảnh nhiếp ảnh</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root { --lr-blue: #0071bc; --lr-dark: #121212; --lr-mid: #1f1f1f; --lr-light: #2a2a2a; --text: #e0e0e0; }
+        body { font-family:"Segoe UI", sans-serif; background:var(--lr-dark); color:var(--text); height:100vh; display:flex; flex-direction:column; }
+        .topbar { height:40px; background:linear-gradient(90deg, #0071bc, #005a9c); display:flex; align-items:center; padding:0 12px; gap:8px; font-size:13px; font-weight:500; color:white; }
+        .module-tabs { display:flex; gap:0; margin-left:20px; }
+        .module-tab { padding:8px 16px; background:rgba(0,0,0,0.2); cursor:pointer; border-right:1px solid rgba(255,255,255,0.1); }
+        .module-tab.active { background:rgba(255,255,255,0.1); }
+        
+        .workspace { flex:1; display:flex; overflow:hidden; }
+        /* Left - Filmstrip */
+        .filmstrip { width:220px; background:var(--lr-mid); border-right:1px solid #333; display:flex; flex-direction:column; }
+        .presets-panel { padding:12px; border-bottom:1px solid #333; overflow-y:auto; flex:1; }
+        .panel-title { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:8px; font-weight:600; letter-spacing:0.5px; }
+        .preset-group { margin-bottom:10px; }
+        .preset-group-title { font-size:12px; color:#aaa; padding:4px 0; cursor:pointer; display:flex; justify-content:space-between; }
+        .preset-item { font-size:12px; padding:5px 8px; border-radius:4px; cursor:pointer; color:#ccc; margin-left:8px; }
+        .preset-item:hover { background:var(--lr-blue); color:white; }
+        
+        .filmstrip-thumbs { height:120px; background:#0a0a0a; border-top:1px solid #333; padding:8px; display:flex; gap:6px; overflow-x:auto; }
+        .thumb { width:80px; height:90px; background:linear-gradient(135deg, #444, #222); border-radius:4px; flex-shrink:0; position:relative; cursor:pointer; border:2px solid transparent; }
+        .thumb.active { border-color:var(--lr-blue); }
+        .thumb.selected { border-color:white; }
+        
+        /* Center - Preview */
+        .preview-area { flex:1; background:#0a0a0a; display:flex; align-items:center; justify-content:center; position:relative; }
+        .preview-image { width:80%; height:80%; background:linear-gradient(135deg, #2c3e50, #4a6fa5); border-radius:4px; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+        .preview-image::after { content:"📷 Photo Preview"; color:rgba(255,255,255,0.3); font-size:18px; }
+        .compare-handle { position:absolute; top:0; bottom:0; width:2px; background:white; left:50%; cursor:ew-resize; }
+        .compare-handle::before { content:"⟷"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; color:black; padding:4px; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+        
+        .tool-strip { position:absolute; bottom:20px; background:rgba(0,0,0,0.7); border-radius:24px; padding:8px; display:flex; gap:4px; }
+        .tool-strip-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; color:white; cursor:pointer; font-size:16px; }
+        .tool-strip-btn:hover { background:rgba(255,255,255,0.1); }
+        
+        /* Right - Adjustments */
+        .adjustments-panel { width:300px; background:var(--lr-mid); border-left:1px solid #333; padding:12px; overflow-y:auto; }
+        .adjust-section { margin-bottom:16px; }
+        .adjust-section-title { font-size:13px; font-weight:600; color:white; margin-bottom:10px; padding-bottom:4px; border-bottom:1px solid #333; }
+        
+        .slider-row { margin-bottom:10px; }
+        .slider-row-header { display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:3px; }
+        .slider-value { color:var(--lr-blue); font-family:monospace; }
+        input[type=range] { width:100%; accent-color:var(--lr-blue); }
+        
+        .histogram { height:80px; background:#1a1a1a; border-radius:4px; margin-bottom:12px; position:relative; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 100'%3E%3Cpath d='M0,100 L20,80 L40,70 L60,85 L80,60 L100,40 L120,50 L140,30 L160,45 L180,25 L200,55 L220,70 L240,60 L256,80 L256,100 Z' fill='rgba(0,113,188,0.5)'/%3E%3C/svg%3E"); background-size:cover; }
+        
+        .hsl-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+        .hsl-btn { padding:6px; border-radius:4px; border:none; color:white; font-size:10px; cursor:pointer; }
+        .hsl-btn:nth-child(1) { background:#ef4444; } .hsl-btn:nth-child(2) { background:#f59e0b; } .hsl-btn:nth-child(3) { background:#eab308; }
+        .hsl-btn:nth-child(4) { background:#22c55e; } .hsl-btn:nth-child(5) { background:#06b6d4; } .hsl-btn:nth-child(6) { background:#3b82f6; }
+        .hsl-btn:nth-child(7) { background:#8b5cf6; } .hsl-btn:nth-child(8) { background:#ec4899; }
+        
+        .statusbar { height:22px; background:var(--lr-blue); color:white; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span>📸 xLight CC 2026</span>
+        <div class="module-tabs">
+            <div class="module-tab">Library</div>
+            <div class="module-tab active">Develop</div>
+            <div class="module-tab">Map</div>
+            <div class="module-tab">Book</div>
+            <div class="module-tab">Slideshow</div>
+            <div class="module-tab">Print</div>
+            <div class="module-tab">Web</div>
+        </div>
+        <div style="margin-left:auto;">✨ AI Masking | Auto Edit</div>
+    </div>
+
+    <div class="workspace">
+        <div class="filmstrip">
+            <div class="presets-panel">
+                <div class="panel-title">Presets</div>
+                <div class="preset-group">
+                    <div class="preset-group-title">Color <span>▼</span></div>
+                    <div class="preset-item">Color Pop</div>
+                    <div class="preset-item">Vintage Film</div>
+                    <div class="preset-item">Warm Golden</div>
+                    <div class="preset-item">Cool Blue</div>
+                    <div class="preset-item">Cinematic</div>
+                </div>
+                <div class="preset-group">
+                    <div class="preset-group-title">Black & White <span>▼</span></div>
+                    <div class="preset-item">B&W Contrast</div>
+                    <div class="preset-item">B&W Soft</div>
+                    <div class="preset-item">B&W High Key</div>
+                </div>
+                <div class="preset-group">
+                    <div class="preset-group-title">Curve <span>▼</span></div>
+                    <div class="preset-item">Medium Contrast</div>
+                    <div class="preset-item">Strong Contrast</div>
+                    <div class="preset-item">Flat</div>
+                </div>
+                <div class="preset-group">
+                    <div class="preset-group-title">✨ AI Presets <span>▼</span></div>
+                    <div class="preset-item">AI Enhance</div>
+                    <div class="preset-item">AI Portrait</div>
+                    <div class="preset-item">AI Landscape</div>
+                    <div class="preset-item">AI Skin Smooth</div>
+                </div>
+            </div>
+            <div class="filmstrip-thumbs">
+                <div class="thumb active"></div>
+                <div class="thumb"></div>
+                <div class="thumb selected"></div>
+                <div class="thumb"></div>
+                <div class="thumb"></div>
+                <div class="thumb"></div>
+            </div>
+        </div>
+
+        <div class="preview-area">
+            <div class="preview-image">
+                <div class="compare-handle"></div>
+            </div>
+            <div class="tool-strip">
+                <button class="tool-strip-btn">✂️</button>
+                <button class="tool-strip-btn">⬜</button>
+                <button class="tool-strip-btn">🖌️</button>
+                <button class="tool-strip-btn">🔍</button>
+                <button class="tool-strip-btn">🧹</button>
+                <button class="tool-strip-btn">👁️</button>
+                <button class="tool-strip-btn" style="color:var(--lr-blue); background:rgba(0,113,188,0.2);">✨ AI Mask</button>
+            </div>
+        </div>
+
+        <div class="adjustments-panel">
+            <div class="histogram"></div>
+            
+            <div class="adjust-section">
+                <div class="adjust-section-title">Basic</div>
+                <div class="slider-row"><div class="slider-row-header"><span>Exposure</span><span class="slider-value">+0.30</span></div><input type="range" min="-100" max="100" value="30"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Contrast</span><span class="slider-value">+15</span></div><input type="range" min="-100" max="100" value="15"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Highlights</span><span class="slider-value">-25</span></div><input type="range" min="-100" max="100" value="-25"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Shadows</span><span class="slider-value">+35</span></div><input type="range" min="-100" max="100" value="35"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Whites</span><span class="slider-value">+10</span></div><input type="range" min="-100" max="100" value="10"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Blacks</span><span class="slider-value">-5</span></div><input type="range" min="-100" max="100" value="-5"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Texture</span><span class="slider-value">+20</span></div><input type="range" min="-100" max="100" value="20"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Clarity</span><span class="slider-value">+15</span></div><input type="range" min="-100" max="100" value="15"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Dehaze</span><span class="slider-value">+5</span></div><input type="range" min="-100" max="100" value="5"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Vibrance</span><span class="slider-value">+25</span></div><input type="range" min="-100" max="100" value="25"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Saturation</span><span class="slider-value">+5</span></div><input type="range" min="-100" max="100" value="5"></div>
+                <button style="width:100%; padding:8px; margin-top:8px; background:#1a1a1a; border:1px solid #333; color:#aaa; border-radius:4px; cursor:pointer;">Auto</button>
+            </div>
+
+            <div class="adjust-section">
+                <div class="adjust-section-title">White Balance</div>
+                <div class="slider-row"><div class="slider-row-header"><span>Temp</span><span class="slider-value">5500K</span></div><input type="range" min="2000" max="10000" value="5500"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Tint</span><span class="slider-value">+5</span></div><input type="range" min="-100" max="100" value="5"></div>
+            </div>
+
+            <div class="adjust-section">
+                <div class="adjust-section-title">HSL / Color</div>
+                <div class="hsl-grid">
+                    <button class="hsl-btn">Red</button>
+                    <button class="hsl-btn">Orange</button>
+                    <button class="hsl-btn">Yellow</button>
+                    <button class="hsl-btn">Green</button>
+                    <button class="hsl-btn">Aqua</button>
+                    <button class="hsl-btn">Blue</button>
+                    <button class="hsl-btn">Purple</button>
+                    <button class="hsl-btn">Magenta</button>
+                </div>
+            </div>
+
+            <div class="adjust-section">
+                <div class="adjust-section-title">Detail</div>
+                <div class="slider-row"><div class="slider-row-header"><span>Sharpening</span><span class="slider-value">40</span></div><input type="range" min="0" max="150" value="40"></div>
+                <div class="slider-row"><div class="slider-row-header"><span>Noise Reduction</span><span class="slider-value">25</span></div><input type="range" min="0" max="100" value="25"></div>
+            </div>
+
+            <div class="adjust-section">
+                <div class="adjust-section-title">Lens Corrections</div>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:8px; cursor:pointer;"><input type="checkbox" checked> Enable Profile Corrections</label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;"><input type="checkbox"> Remove Chromatic Aberration</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span>DSC_0001.RAW</span>
+        <span>ISO 400 | 50mm | f/1.8 | 1/250s</span>
+        <span>24MP · 6000×4000</span>
+        <span style="margin-left:auto;">AI tự động chỉnh màu, sửa sáng, mask chủ thể khi bạn yêu cầu trong Chat</span>
+    </div>
+</body>
+</html>
