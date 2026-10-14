@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>xCalc - Máy tính</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Segoe UI", sans-serif; background:#1a1a1a; display:flex; align-items:center; justify-content:center; height:100vh; }
+        .calc { background:#262626; border-radius:16px; padding:20px; box-shadow:0 10px 40px rgba(0,0,0,0.5); width:360px; }
+        .display { background:#1a1a1a; color:white; padding:24px; border-radius:12px; font-size:36px; text-align:right; margin-bottom:16px; font-family:monospace; overflow:hidden; min-height:90px; display:flex; align-items:flex-end; justify-content:flex-end; }
+        .buttons { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        .btn { padding:18px; border:none; border-radius:12px; font-size:18px; cursor:pointer; font-weight:600; }
+        .btn.num { background:#3a3a3a; color:white; }
+        .btn.op { background:#ff9500; color:white; }
+        .btn.fn { background:#5a5a5a; color:white; }
+        .btn:hover { filter:brightness(1.2); }
+        .btn.zero { grid-column: span 2; }
+    </style>
+</head>
+<body>
+    <div class="calc">
+        <div class="display" id="display">0</div>
+        <div class="buttons">
+            <button class="btn fn">AC</button>
+            <button class="btn fn">±</button>
+            <button class="btn fn">%</button>
+            <button class="btn op">÷</button>
+            <button class="btn num">7</button>
+            <button class="btn num">8</button>
+            <button class="btn num">9</button>
+            <button class="btn op">×</button>
+            <button class="btn num">4</button>
+            <button class="btn num">5</button>
+            <button class="btn num">6</button>
+            <button class="btn op">-</button>
+            <button class="btn num">1</button>
+            <button class="btn num">2</button>
+            <button class="btn num">3</button>
+            <button class="btn op">+</button>
+            <button class="btn num zero">0</button>
+            <button class="btn num">.</button>
+            <button class="btn op">=</button>
+        </div>
+    </div>
+    <script>
+        const display = document.getElementById('display');
+        let current = '0', prev = null, op = null;
+        function update() { display.textContent = current; }
+        document.querySelectorAll('.btn').forEach(b => {
+            b.addEventListener('click', () => {
+                const t = b.textContent;
+                if (t >= '0' && t <= '9') { current = current === '0' ? t : current + t; }
+                else if (t === '.') { if (!current.includes('.')) current += '.'; }
+                else if (t === 'AC') { current = '0'; prev = null; op = null; }
+                else if (['+','-','×','÷'].includes(t)) { prev = current; op = t; current = '0'; }
+                else if (t === '=') {
+                    const a = parseFloat(prev), b = parseFloat(current);
+                    let r = 0;
+                    if (op === '+') r = a+b; if (op === '-') r = a-b;
+                    if (op === '×') r = a*b; if (op === '÷') r = a/b;
+                    current = r.toString();
+                } else if (t === '±') { current = (parseFloat(current)*-1).toString(); }
+                else if (t === '%') { current = (parseFloat(current)/100).toString(); }
+                update();
+            });
+        });
+    </script>
+</body>
+</html>

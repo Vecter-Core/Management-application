@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>xDraw - Vector Graphics</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Segoe UI", sans-serif; background:#262626; color:white; height:100vh; display:flex; flex-direction:column; }
+        .topbar { height:40px; background:#ff9a00; color:black; display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:600; gap:8px; }
+        .workspace { flex:1; display:flex; }
+        .toolbar { width:60px; background:#333; padding:8px; display:flex; flex-direction:column; gap:4px; }
+        .tool { width:44px; height:44px; border-radius:6px; border:none; background:transparent; color:white; font-size:20px; cursor:pointer; }
+        .tool:hover { background:#444; }
+        .tool.active { background:#ff9a00; color:black; }
+        .canvas-area { flex:1; background:#1a1a1a; position:relative; overflow:hidden; }
+        #canvas { background:white; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); box-shadow:0 0 30px rgba(0,0,0,0.5); }
+        .right-panel { width:240px; background:#333; padding:12px; }
+        .panel-section { margin-bottom:16px; }
+        .panel-title { font-size:12px; text-transform:uppercase; color:#aaa; margin-bottom:8px; }
+    </style>
+</head>
+<body>
+    <div class="topbar"><span>✏️ xDraw (Illustrator-style)</span></div>
+    <div class="workspace">
+        <div class="toolbar">
+            <button class="tool active">🖱️</button>
+            <button class="tool">🖋️</button>
+            <button class="tool">T</button>
+            <button class="tool">▭</button>
+            <button class="tool">○</button>
+            <button class="tool">⬟</button>
+            <button class="tool">✏️</button>
+            <button class="tool">💧</button>
+        </div>
+        <div class="canvas-area">
+            <canvas id="canvas" width="1000" height="700"></canvas>
+        </div>
+        <div class="right-panel">
+            <div class="panel-section">
+                <div class="panel-title">Màu sắc</div>
+                <input type="color" value="#ff9a00" style="width:100%; height:40px; border:none; border-radius:6px; cursor:pointer;">
+            </div>
+            <div class="panel-section">
+                <div class="panel-title">Stroke</div>
+                <input type="range" min="0" max="20" value="2" style="width:100%;">
+            </div>
+            <div class="panel-section">
+                <div class="panel-title">Layers</div>
+                <div style="font-size:13px; padding:8px; background:#444; border-radius:4px; margin-bottom:4px;">Layer 1</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const c = document.getElementById('canvas');
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = 'white'; ctx.fillRect(0,0,c.width,c.height);
+        let drawing = false;
+        c.addEventListener('mousedown', () => drawing = true);
+        c.addEventListener('mouseup', () => drawing = false);
+        c.addEventListener('mousemove', (e) => {
+            if (!drawing) return;
+            const r = c.getBoundingClientRect();
+            ctx.fillStyle = document.querySelector('input[type=color]').value;
+            ctx.beginPath();
+            ctx.arc((e.clientX-r.left)*(c.width/r.width), (e.clientY-r.top)*(c.height/r.height), 3, 0, Math.PI*2);
+            ctx.fill();
+        });
+    </script>
+</body>
+</html>

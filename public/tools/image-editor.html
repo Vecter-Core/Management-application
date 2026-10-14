@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xPhoto - Trình chỉnh sửa ảnh</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --bg-darkest: #1f1f1f;
+            --bg-dark: #2b2b2b;
+            --bg-mid: #3c3c3c;
+            --bg-light: #4a4a4a;
+            --border: #525252;
+            --text: #e0e0e0;
+            --text-dim: #a0a0a0;
+            --accent: #0078d4;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-darkest); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* Menu bar */
+        .menubar { height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 8px; gap: 4px; font-size: 13px; }
+        .menu-item { padding: 4px 12px; border-radius: 4px; cursor: pointer; }
+        .menu-item:hover { background: var(--accent); }
+        
+        /* Options bar */
+        .options-bar { height: 48px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 12px; }
+        .tool-btn { width: 36px; height: 36px; border-radius: 4px; background: transparent; border: none; color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .tool-btn:hover { background: var(--bg-mid); }
+        .tool-btn.active { background: var(--accent); color: white; }
+        .option-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+        .slider-group { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+        .slider-group input[type=range] { width: 100px; }
+        select, .btn { padding: 6px 12px; background: var(--bg-mid); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: var(--accent); border-color: var(--accent); }
+
+        /* Main workspace */
+        .workspace { flex: 1; display: flex; overflow: hidden; }
+        .canvas-area { flex: 1; background: #262626; background-image: linear-gradient(45deg, #1a1a1a 25%, transparent 25%), linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a1a1a 75%), linear-gradient(-45deg, transparent 75%, #1a1a1a 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; overflow: auto; display: flex; align-items: center; justify-content: center; position: relative; }
+        #canvasContainer { position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+        #mainCanvas { background: white; display: block; }
+        
+        /* Left toolbar */
+        .left-toolbar { width: 56px; background: var(--bg-dark); border-right: 1px solid var(--border); padding: 8px 4px; display: grid; grid-template-columns: 1fr; gap: 2px; }
+        .tool { width: 44px; height: 44px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; position: relative; }
+        .tool:hover { background: var(--bg-mid); }
+        .tool.active { background: var(--accent); color: white; }
+        .tool .tooltip { position: absolute; left: 100%; margin-left: 8px; background: black; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; z-index: 100; }
+        .tool:hover .tooltip { opacity: 1; }
+
+        /* Right panel */
+        .right-panel { width: 280px; background: var(--bg-dark); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+        .panel-section { border-bottom: 1px solid var(--border); }
+        .panel-header { padding: 10px 12px; font-weight: 600; font-size: 13px; background: var(--bg-mid); display: flex; justify-content: space-between; cursor: pointer; }
+        .panel-body { padding: 12px; }
+        .adjust-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 12px; }
+        .adjust-row label { width: 80px; color: var(--text-dim); }
+        .adjust-row input { flex: 1; }
+        .adjust-row span { width: 40px; text-align: right; }
+
+        /* Layers panel */
+        .layer-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg-mid); margin-bottom: 4px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .layer-item.active { border-left: 3px solid var(--accent); }
+        .layer-thumb { width: 32px; height: 32px; background: #555; border-radius: 2px; }
+        .layer-vis { cursor: pointer; font-size: 14px; opacity: 0.7; }
+
+        /* Status bar */
+        .statusbar { height: 24px; background: var(--accent); color: white; display: flex; align-items: center; padding: 0 12px; font-size: 12px; gap: 24px; }
+    </style>
+</head>
+<body>
+    <div class="menubar">
+        <div class="menu-item">Tệp</div>
+        <div class="menu-item">Chỉnh sửa</div>
+        <div class="menu-item">Hình ảnh</div>
+        <div class="menu-item">Lớp</div>
+        <div class="menu-item">Lọc</div>
+        <div class="menu-item">Xem</div>
+        <div class="menu-item">Cửa sổ</div>
+        <div class="menu-item">Trợ giúp</div>
+        <div style="margin-left: auto; font-size:12px; color: var(--text-dim);">xPhoto CC 2026 | AI tích hợp</div>
+    </div>
+
+    <div class="options-bar">
+        <button class="tool-btn" id="undoBtn" title="Hoàn tác">↶</button>
+        <button class="tool-btn" id="redoBtn" title="Làm lại">↷</button>
+        <div class="option-divider"></div>
+        <div class="slider-group">
+            <span>Kích thước:</span>
+            <input type="range" id="brushSize" min="1" max="100" value="10">
+            <span id="brushSizeVal">10px</span>
+        </div>
+        <div class="option-divider"></div>
+        <div class="slider-group">
+            <span>Độ mờ:</span>
+            <input type="range" id="brushOpacity" min="0" max="100" value="100">
+            <span id="opacityVal">100%</span>
+        </div>
+        <div class="option-divider"></div>
+        <input type="color" id="brushColor" value="#000000" style="width:32px; height:32px; border:none; border-radius:4px; cursor:pointer;">
+        <div style="margin-left: auto; display:flex; gap:8px;">
+            <button class="btn" id="openImgBtn">Mở ảnh</button>
+            <button class="btn" id="newCanvasBtn">Tạo mới</button>
+            <button class="btn btn-primary" id="exportBtn">Xuất ảnh</button>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="left-toolbar">
+            <div class="tool active" data-tool="brush"><span>🖌️</span><div class="tooltip">Bút vẽ (B)</div></div>
+            <div class="tool" data-tool="eraser"><span>🧹</span><div class="tooltip">Tẩy (E)</div></div>
+            <div class="tool" data-tool="fill"><span>🪣</span><div class="tooltip">Đổ màu (G)</div></div>
+            <div class="tool" data-tool="text"><span>T</span><div class="tooltip">Văn bản (T)</div></div>
+            <div class="tool" data-tool="rect"><span>▭</span><div class="tooltip">Hình chữ nhật (M)</div></div>
+            <div class="tool" data-tool="circle"><span>○</span><div class="tooltip">Hình tròn</div></div>
+            <div class="tool" data-tool="line"><span>╱</span><div class="tooltip">Đường thẳng</div></div>
+            <div class="tool" data-tool="eyedropper"><span>💧</span><div class="tooltip">Lấy màu (I)</div></div>
+            <div class="tool" data-tool="crop"><span>✂️</span><div class="tooltip">Cắt ảnh (C)</div></div>
+            <div class="tool" data-tool="move"><span>🖱️</span><div class="tooltip">Di chuyển (V)</div></div>
+            <div class="tool" data-tool="zoom"><span>🔍</span><div class="tooltip">Phóng to (Z)</div></div>
+            <div style="margin-top: auto;"></div>
+            <div class="tool" id="aiEditBtn"><span>✨</span><div class="tooltip">AI Chỉnh sửa</div></div>
+        </div>
+
+        <div class="canvas-area" id="canvasArea">
+            <div id="canvasContainer">
+                <canvas id="mainCanvas" width="1200" height="800"></canvas>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-section">
+                <div class="panel-header"><span>Điều chỉnh màu</span><span>▼</span></div>
+                <div class="panel-body">
+                    <div class="adjust-row">
+                        <label>Độ sáng</label>
+                        <input type="range" id="brightness" min="-100" max="100" value="0">
+                        <span id="bVal">0</span>
+                    </div>
+                    <div class="adjust-row">
+                        <label>Độ tương phản</label>
+                        <input type="range" id="contrast" min="-100" max="100" value="0">
+                        <span id="cVal">0</span>
+                    </div>
+                    <div class="adjust-row">
+                        <label>Bão hòa</label>
+                        <input type="range" id="saturation" min="-100" max="100" value="0">
+                        <span id="sVal">0</span>
+                    </div>
+                    <div class="adjust-row">
+                        <label>Độ nóng</label>
+                        <input type="range" id="temperature" min="-100" max="100" value="0">
+                        <span id="tVal">0</span>
+                    </div>
+                    <div class="adjust-row">
+                        <label>Độ mờ</label>
+                        <input type="range" id="blur" min="0" max="20" value="0">
+                        <span id="blurVal">0</span>
+                    </div>
+                    <button class="btn" style="width:100%; margin-top:8px;" id="resetAdjust">Đặt lại</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-header"><span>Bộ lọc</span><span>▼</span></div>
+                <div class="panel-body" style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                    <button class="btn filter-btn" data-filter="none">Gốc</button>
+                    <button class="btn filter-btn" data-filter="grayscale">Đen trắng</button>
+                    <button class="btn filter-btn" data-filter="sepia">Cổ điển</button>
+                    <button class="btn filter-btn" data-filter="invert">Âm bản</button>
+                    <button class="btn filter-btn" data-filter="vintage">Vintage</button>
+                    <button class="btn filter-btn" data-filter="vivid">Rực rỡ</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-header"><span>Lớp</span><span>+</span></div>
+                <div class="panel-body" id="layersList">
+                    <div class="layer-item active">
+                        <span class="layer-vis">👁️</span>
+                        <div class="layer-thumb" style="background: white;"></div>
+                        <span>Nền</span>
+                    </div>
+                    <div class="layer-item">
+                        <span class="layer-vis">👁️</span>
+                        <div class="layer-thumb"></div>
+                        <span>Lớp 1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span id="statusCoords">X: 0, Y: 0</span>
+        <span id="statusSize">1200 × 800 px</span>
+        <span id="statusZoom">100%</span>
+        <span style="margin-left:auto;">✅ Đã sẵn sàng | Tích hợp AI: Có thể điều khiển qua Chat</span>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" style="display:none;">
+    <script src="image-editor.js"></script>
+</body>
+</html>

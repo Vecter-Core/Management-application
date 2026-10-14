@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rune - Local Control Center</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="rune-logo">
+                    <div class="rune-cube">
+                        <div class="front"></div>
+                        <div class="back"></div>
+                        <div class="left"></div>
+                        <div class="right"></div>
+                        <div class="top"></div>
+                        <div class="bottom"></div>
+                    </div>
+                    <div class="rune-inner"></div>
+                </div>
+                <span class="logo-text">RUNE</span>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>Tổng quan</span>
+                </button>
+                <button class="nav-item" data-page="chat">
+                    <span class="nav-icon">🤖</span>
+                    <span>AI Chat</span>
+                    <span class="nav-badge">Mới</span>
+                </button>
+                <button class="nav-item" data-page="keys">
+                    <span class="nav-icon">🔑</span>
+                    <span>API Keys</span>
+                </button>
+                <button class="nav-item" data-page="creative">
+                    <span class="nav-icon">🎨</span>
+                    <span>Sáng tạo</span>
+                </button>
+                <button class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Cài đặt</span>
+                </button>
+                <button class="nav-item" data-page="automation">
+                    <span class="nav-icon">⚡</span>
+                    <span>Tự động hóa</span>
+                    <span class="nav-badge">Mới</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="adobe-ecosystem">
+                    <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Ứng dụng Creative</div>
+                    <div class="app-mini ps" data-app="xphoto" title="xPhoto - Raster Editor (Photoshop)">Ps</div>
+                    <div class="app-mini lr" data-app="xlight" title="xLight - Photo Processing (Lightroom)">Lr</div>
+                    <div class="app-mini pr" data-app="xcut" title="xCut Pro - Video Editor (Premiere Pro)">Pr</div>
+                    <div class="app-mini ae" data-app="xfx" title="xFX - Motion Graphics & VFX (After Effects)">Ae</div>
+                    <div class="app-mini ai" data-app="xdraw" title="xVector - Vector Editor (Illustrator)">Ai</div>
+                    <div class="app-mini id" data-app="xlayout" title="xLayout - Desktop Publishing (InDesign)">Id</div>
+                    <div class="app-mini xd" data-app="xprototype" title="xPrototype - UI/UX Design (XD)">Xd</div>
+                    <div class="app-mini au" data-app="xaudio" title="xAudio - Audio Editor (Audition)">Au</div>
+                    <div class="app-mini dc" data-app="xdocs" title="xDocs - Soạn thảo (Docs/Word)">Dc</div>
+                    <div class="app-mini pdf" data-app="xpdf" title="xPDF - PDF (Acrobat)">PDF</div>
+                    <div class="app-mini calc" data-app="xcalc" title="Máy tính">🧮</div>
+                    <div class="app-mini term" data-app="xterm" title="Terminal">$_</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Nội dung chính -->
+        <main class="main" id="mainContent">
+            <!-- Trang Tổng quan -->
+            <div id="page-dashboard" class="page active">
+                <div class="page-header">
+                    <h1>Tổng quan hệ thống</h1>
+                    <div class="country-selector">
+                        <label>Quốc gia:</label>
+                        <select id="countrySelect" class="select-input">
+                            <option value="US">🇺🇸 Hoa Kỳ</option>
+                            <option value="VN" selected>🇻🇳 Việt Nam</option>
+                            <option value="JP">🇯🇵 Nhật Bản</option>
+                            <option value="CN">🇨🇳 Trung Quốc</option>
+                            <option value="EU">🇪🇺 Châu Âu</option>
+                        </select>
+                    </div>
+                </div>
+
+                <section class="section">
+                    <h2 class="section-title">📈 Thị trường Kinh tế & Chứng khoán (Real-time)</h2>
+                    <div class="indicator-grid">
+                        <div class="stat-card green">
+                            <div class="stat-label">Chỉ số chính</div>
+                            <div class="stat-value" id="idxName">VN-Index</div>
+                            <div class="stat-change" id="idxChange">--</div>
+                            <div class="stat-num" id="idxValue">--</div>
+                        </div>
+                        <div class="stat-card"><div class="stat-label">GDP</div><div class="stat-value" id="gdpVal">--</div><div class="stat-sub">% tăng trưởng</div></div>
+                        <div class="stat-card red"><div class="stat-label">Lạm phát</div><div class="stat-value" id="inflationVal">--</div><div class="stat-sub">CPI %</div></div>
+                        <div class="stat-card yellow"><div class="stat-label">Thất nghiệp</div><div class="stat-value" id="unempVal">--</div><div class="stat-sub">%</div></div>
+                        <div class="stat-card purple"><div class="stat-label">Lãi suất</div><div class="stat-value" id="rateVal">--</div><div class="stat-sub">%/năm</div></div>
+                    </div>
+                    <div class="chart-container"><canvas id="marketChart"></canvas></div>
+                    <div class="stock-table-container">
+                        <h3>Danh sách mã chứng khoán</h3>
+                        <table class="stock-table">
+                            <thead><tr><th>Mã</th><th>Tên</th><th>Giá</th><th>Thay đổi</th><th>%</th><th>KL</th></tr></thead>
+                            <tbody id="stockTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">💻 Giám sát tài nguyên máy</h2>
+                    <div class="system-grid">
+                        <div class="sys-card"><div class="sys-header"><span class="sys-icon">🖥️</span><div><div class="sys-title">CPU</div><div class="sys-name" id="cpuName">Native C++</div></div></div><div class="progress-bar"><div class="progress-fill green" id="cpuBar"></div></div><div class="sys-stats"><span><strong id="cpuUsage">0%</strong></span><span><strong id="cpuTemp">--°C</strong></span></div></div>
+                        <div class="sys-card"><div class="sys-header"><span class="sys-icon">🎮</span><div><div class="sys-title">GPU</div><div class="sys-name" id="gpuName">Detecting...</div></div></div><div class="progress-bar"><div class="progress-fill blue" id="gpuBar"></div></div><div class="sys-stats"><span><strong id="gpuUsage">0%</strong></span><span><strong id="gpuTemp">--°C</strong></span></div></div>
+                        <div class="sys-card"><div class="sys-header"><span class="sys-icon">🧠</span><div><div class="sys-title">RAM</div><div class="sys-name">Memory</div></div></div><div class="progress-bar"><div class="progress-fill orange" id="ramBar"></div></div><div class="sys-stats"><span><strong id="ramUsed">--</strong></span><span><strong id="ramAvail">--</strong></span></div></div>
+                        <div class="sys-card"><div class="sys-header"><span class="sys-icon">💾</span><div><div class="sys-title">Ổ đĩa</div><div class="sys-name" id="diskName">Disk C:</div></div></div><div class="progress-bar"><div class="progress-fill purple" id="diskBar"></div></div><div class="sys-stats"><span><strong id="diskUsed">--</strong></span><span>Đọc/Ghi: <strong id="diskIO">0 MB/s</strong></span></div></div>
+                    </div>
+                </section>
+
+                <!-- Phần Mạng chi tiết -->
+                <section class="section">
+                    <h2 class="section-title">🌐 Thông tin Mạng</h2>
+                    <div class="network-grid">
+                        <div class="net-card">
+                            <div class="net-header">
+                                <span class="net-status online">●</span>
+                                <span class="net-title">Kết nối Internet</span>
+                            </div>
+                            <div class="net-info-row">
+                                <span class="net-label">Trạng thái:</span>
+                                <span class="net-value status-good">Đã kết nối</span>
+                            </div>
+                            <div class="net-info-row">
+                                <span class="net-label">Ping:</span>
+                                <span class="net-value" id="pingVal">-- ms</span>
+                            </div>
+                            <div class="net-info-row">
+                                <span class="net-label">IP Public:</span>
+                                <span class="net-value" id="publicIp">127.0.0.1</span>
+                            </div>
+                            <div class="net-info-row">
+                                <span class="net-label">IP Local:</span>
+                                <span class="net-value">192.168.1.100</span>
+                            </div>
+                            <div class="net-info-row">
+                                <span class="net-label">ISP:</span>
+                                <span class="net-value">Viettel / VNPT</span>
+                            </div>
+                        </div>
+
+                        <div class="net-card">
+                            <div class="net-header">
+                                <span class="net-status">📶</span>
+                                <span class="net-title">Tốc độ mạng Realtime</span>
+                            </div>
+                            <div class="speed-display">
+                                <div class="speed-item">
+                                    <div class="speed-icon">⬇️</div>
+                                    <div class="speed-value" id="netDownLarge">0 MB/s</div>
+                                    <div class="speed-label">Download</div>
+                                </div>
+                                <div class="speed-item">
+                                    <div class="speed-icon">⬆️</div>
+                                    <div class="speed-value" id="netUpLarge">0 MB/s</div>
+                                    <div class="speed-label">Upload</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px; height:80px;">
+                                <canvas id="networkChart" style="width:100%; height:100%;"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="net-card connections-card">
+                            <div class="net-header">
+                                <span class="net-status">🔌</span>
+                                <span class="net-title">Kết nối đang hoạt động</span>
+                            </div>
+                            <div class="connection-list" id="connectionList">
+                                <div class="conn-item">
+                                    <span class="conn-proto">TCP</span>
+                                    <span class="conn-ip">192.168.1.100:54231 → 142.250.xxx.xxx:443</span>
+                                    <span class="conn-status good">HTTPS</span>
+                                </div>
+                                <div class="conn-item">
+                                    <span class="conn-proto">TCP</span>
+                                    <span class="conn-ip">192.168.1.100:54234 → 104.16.xxx.xxx:443</span>
+                                    <span class="conn-status good">HTTPS</span>
+                                </div>
+                                <div class="conn-item">
+                                    <span class="conn-proto">UDP</span>
+                                    <span class="conn-ip">0.0.0.0:53 → DNS Server</span>
+                                    <span class="conn-status warn">DNS</span>
+                                </div>
+                                <div class="conn-item">
+                                    <span class="conn-proto">TCP</span>
+                                    <span class="conn-ip">0.0.0.0:8080 → Local Server</span>
+                                    <span class="conn-status good">Rune</span>
+                                </div>
+                                <div class="conn-item">
+                                    <span class="conn-proto">TCP</span>
+                                    <span class="conn-ip">192.168.1.100:54289 → 185.xxx.xxx.xxx:443</span>
+                                    <span class="conn-status bad">CẢNH BÁO</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Phần Bảo mật & Health Check -->
+                <section class="section">
+                    <h2 class="section-title">🛡️ Bảo mật & Kiểm tra sức khỏe máy</h2>
+                    
+                    <div class="health-overview">
+                        <div class="health-score">
+                            <div class="score-circle" id="scoreCircle">
+                                <div class="score-num" id="healthScore">87</div>
+                                <div class="score-label">/100</div>
+                            </div>
+                            <div class="score-info">
+                                <div style="font-size:18px; font-weight:700; margin-bottom:4px;">Tình trạng: TỐT</div>
+                                <div style="color:var(--text-secondary); font-size:13px;">Máy tính của bạn an toàn, có 1 mục cần chú ý</div>
+                                <button class="btn-scan" id="quickScanBtn">🔍 Quét nhanh</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="security-grid">
+                        <div class="security-item good">
+                            <div class="sec-icon">🔰</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Tường lửa (Firewall)</div>
+                                <div class="sec-status">Đang bật</div>
+                                <div class="sec-desc">Tường lửa Windows/Linux đang hoạt động, chặn kết nối đáng ngờ</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+
+                        <div class="security-item good">
+                            <div class="sec-icon">🛡️</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Antivirus / Windows Defender</div>
+                                <div class="sec-status">Đang hoạt động</div>
+                                <div class="sec-desc">Cơ sở dữ liệu virus được cập nhật hôm nay</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+
+                        <div class="security-item warn">
+                            <div class="sec-icon">⚠️</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Cập nhật hệ thống</div>
+                                <div class="sec-status">Có 2 bản cập nhật đang chờ</div>
+                                <div class="sec-desc">Bản cập nhật bảo mật quan trọng được phát hành 2 ngày trước</div>
+                            </div>
+                            <button class="btn-fix">Cập nhật</button>
+                        </div>
+
+                        <div class="security-item good">
+                            <div class="sec-icon">🔒</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Mã hóa ổ đĩa (BitLocker)</div>
+                                <div class="sec-status">Đã bật</div>
+                                <div class="sec-desc">Dữ liệu ổ đĩa được mã hóa, an toàn khi mất máy</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+
+                        <div class="security-item warn">
+                            <div class="sec-icon">🌡️</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Nhiệt độ CPU</div>
+                                <div class="sec-status" id="cpuTempSec">62°C</div>
+                                <div class="sec-desc">Nhiệt độ bình thường, nên vệ sinh quạt tản nhiệt nếu >85°C</div>
+                            </div>
+                            <span class="status-ind good">Bình thường</span>
+                        </div>
+
+                        <div class="security-item good">
+                            <div class="sec-icon">💾</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Sức khỏe ổ đĩa (SMART)</div>
+                                <div class="sec-status">Tốt (98%)</div>
+                                <div class="sec-desc">Không có sector lỗi, dự kiến còn sử dụng được 5+ năm</div>
+                            </div>
+                            <span class="status-ind good">Ổn định</span>
+                        </div>
+
+                        <div class="security-item bad">
+                            <div class="sec-icon">🚨</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Kết nối đáng ngờ</div>
+                                <div class="sec-status">Phát hiện 1 kết nối IP lạ</div>
+                                <div class="sec-desc">Phát hiện kết nối đến IP không xác định ở cổng 443</div>
+                            </div>
+                            <button class="btn-fix danger">Chặn</button>
+                        </div>
+
+                        <div class="security-item good">
+                            <div class="sec-icon">🔑</div>
+                            <div class="sec-info">
+                                <div class="sec-title">Mật khẩu tài khoản</div>
+                                <div class="sec-status">Mạnh</div>
+                                <div class="sec-desc">Mật khẩu đủ mạnh, bật xác thực 2 yếu tố</div>
+                            </div>
+                            <span class="status-ind good">An toàn</span>
+                        </div>
+                    </div>
+
+                    <div class="process-section">
+                        <h3>⚡ Tiến trình đang chạy (Top dùng tài nguyên)</h3>
+                        <table class="process-table">
+                            <thead>
+                                <tr>
+                                    <th>Tên tiến trình</th>
+                                    <th>PID</th>
+                                    <th>CPU</th>
+                                    <th>RAM</th>
+                                    <th>Disk</th>
+                                    <th>Network</th>
+                                    <th>Độ tin cậy</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="processTableBody">
+                                <tr>
+                                    <td><strong>chrome.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Google Chrome</span></td>
+                                    <td>12458</td>
+                                    <td>12.4%</td>
+                                    <td>856 MB</td>
+                                    <td>1.2 MB/s</td>
+                                    <td>2.4 MB/s</td>
+                                    <td><span class="trust-ind good">✓ Đã ký</span></td>
+                                    <td><button class="proc-kill">Kết thúc</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>xkiro-manager.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Ứng dụng này</span></td>
+                                    <td>8524</td>
+                                    <td>2.1%</td>
+                                    <td>142 MB</td>
+                                    <td>0 MB/s</td>
+                                    <td>0.1 MB/s</td>
+                                    <td><span class="trust-ind good">✓ Đã ký</span></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>game_overlay.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Unknown Publisher</span></td>
+                                    <td>24168</td>
+                                    <td>8.7%</td>
+                                    <td>215 MB</td>
+                                    <td>0 MB/s</td>
+                                    <td>0.8 MB/s</td>
+                                    <td><span class="trust-ind warn">⚠ Không xác định</span></td>
+                                    <td><button class="proc-kill">Kết thúc</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>explorer.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Windows Explorer</span></td>
+                                    <td>5420</td>
+                                    <td>0.8%</td>
+                                    <td>89 MB</td>
+                                    <td>0.1 MB/s</td>
+                                    <td>0 MB/s</td>
+                                    <td><span class="trust-ind good">✓ Hệ thống</span></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>discord.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Discord</span></td>
+                                    <td>14892</td>
+                                    <td>3.2%</td>
+                                    <td>320 MB</td>
+                                    <td>0 MB/s</td>
+                                    <td>0.3 MB/s</td>
+                                    <td><span class="trust-ind good">✓ Đã ký</span></td>
+                                    <td><button class="proc-kill">Kết thúc</button></td>
+                                </tr>
+                                <tr class="danger-row">
+                                    <td><strong>miner.exe</strong> <span style="color:var(--red); font-size:12px;">Không xác định - nghi ngờ đào coin</span></td>
+                                    <td>65412</td>
+                                    <td>42.8%</td>
+                                    <td>1.2 GB</td>
+                                    <td>0 MB/s</td>
+                                    <td>1.5 MB/s</td>
+                                    <td><span class="trust-ind bad">✗ Chưa ký</span></td>
+                                    <td><button class="proc-kill danger">Kết thúc & Xóa</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Trang AI Chat - Tích hợp điều khiển toàn bộ tools -->
+            <div id="page-chat" class="page">
+                <div class="chat-wrapper">
+                    <div class="chat-header">
+                        <h2>✨ AI Assistant - Điều khiển cả hệ thống</h2>
+                        <div class="chat-options">
+                            <label class="checkbox-label"><input type="checkbox" id="enableWeb" checked> 🌐 Web</label>
+                            <label class="checkbox-label"><input type="checkbox" id="enableCli" checked> 💻 CLI</label>
+                            <label class="checkbox-label"><input type="checkbox" id="enableTools" checked> 🛠️ Tools</label>
+                            <select id="aiModel" class="select-input">
+                                <option value="local">Local (Rune)</option>
+                                <option value="gpt">GPT-4o</option>
+                                <option value="claude">Claude</option>
+                                <option value="gemini">Gemini</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="quick-tools-bar">
+                        <span style="color:var(--text-muted); font-size:12px;">Mở nhanh:</span>
+                        <button class="quick-tool-chip" data-open="xphoto">🖼️ Ps Sửa ảnh</button>
+                        <button class="quick-tool-chip" data-open="xlight">📷 Lr Xử lý ảnh</button>
+                        <button class="quick-tool-chip" data-open="xcut">🎬 Pr Dựng phim</button>
+                        <button class="quick-tool-chip" data-open="xfx">✨ Ae Hiệu ứng</button>
+                        <button class="quick-tool-chip" data-open="xdraw">⬡ Ai Vẽ vector</button>
+                        <button class="quick-tool-chip" data-open="xlayout">📐 Id Dàn trang</button>
+                        <button class="quick-tool-chip" data-open="xprototype">💜 Xd UI/UX</button>
+                        <button class="quick-tool-chip" data-open="xaudio">🎵 Au Âm thanh</button>
+                        <button class="quick-tool-chip" data-open="xdocs">📝 Soạn thảo</button>
+                        <button class="quick-tool-chip" data-open="xpdf">📄 PDF</button>
+                        <button class="quick-tool-chip" data-open="xterm">💻 Terminal</button>
+                    </div>
+
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message assistant">
+                            <div class="msg-content">
+                                <p>👋 Chào mừng đến với Rune AI! Tôi có thể:</p>
+                                <ul>
+                                    <li>✅ <strong>Mở và điều khiển toàn bộ ứng dụng Creative</strong>: "Mở sửa ảnh", "Cắt video cho tôi", "Soạn tài liệu"</li>
+                                    <li>✅ <strong>Truy cập web thật</strong> để lấy dữ liệu thị trường, tin tức</li>
+                                    <li>✅ <strong>Chạy lệnh CLI</strong> trực tiếp trên máy bạn</li>
+                                    <li>✅ <strong>Xem thông tin hệ thống</strong> CPU/GPU/RAM realtime</li>
+                                    <li>✅ <strong>Quản lý API keys</strong> cho bạn</li>
+                                </ul>
+                                <p style="margin-top:10px; padding:10px; background:var(--bg-tertiary); border-radius:8px; font-size:13px;">
+                                    💡 Thử nói: <em>"Mở Photoshop cho tôi sửa ảnh"</em> hoặc <em>"Lấy giá VIC hôm nay"</em>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="toolEmbedContainer" class="tool-embed hidden"></div>
+                    <div id="cliOutput" class="cli-output hidden"></div>
+
+                    <div class="chat-input-area">
+                        <textarea id="chatInput" placeholder="Nói với AI: mở app, chỉnh sửa ảnh/video, chạy lệnh, lấy dữ liệu..."></textarea>
+                        <button id="sendChat" class="btn-send">Gửi ➤</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trang API Keys -->
+            <div id="page-keys" class="page">
+                <div class="page-header"><h1>🔑 Quản lý API Keys</h1></div>
+                <p class="page-desc">Tất cả API key được lưu cục bộ trên máy bạn, C++ mã hóa trước khi ghi đĩa</p>
+                <div class="keys-grid" id="keysGrid">
+                    <div class="key-card"><div class="key-icon">🤖</div><div class="key-info"><div class="key-name">OpenAI</div><div class="key-desc">GPT, DALL-E, Whisper</div></div><input type="password" class="key-input" data-service="openai" placeholder="sk-..."><button class="btn-save-key" data-service="openai">Lưu</button></div>
+                    <div class="key-card"><div class="key-icon">🧠</div><div class="key-info"><div class="key-name">Anthropic</div><div class="key-desc">Claude models</div></div><input type="password" class="key-input" data-service="anthropic" placeholder="sk-ant-..."><button class="btn-save-key" data-service="anthropic">Lưu</button></div>
+                    <div class="key-card"><div class="key-icon">💎</div><div class="key-info"><div class="key-name">Google Gemini</div><div class="key-desc">Google AI</div></div><input type="password" class="key-input" data-service="gemini"><button class="btn-save-key" data-service="gemini">Lưu</button></div>
+                    <div class="key-card"><div class="key-icon">📈</div><div class="key-info"><div class="key-name">Alpha Vantage</div><div class="key-desc">Dữ liệu CK</div></div><input type="password" class="key-input" data-service="alpha"><button class="btn-save-key" data-service="alpha">Lưu</button></div>
+                    <div class="key-card"><div class="key-icon">🔍</div><div class="key-info"><div class="key-name">Tavily Search</div><div class="key-desc">Web search</div></div><input type="password" class="key-input" data-service="tavily"><button class="btn-save-key" data-service="tavily">Lưu</button></div>
+                    <div class="key-card"><div class="key-icon">🎨</div><div class="key-info"><div class="key-name">Stable Diffusion</div><div class="key-desc">Tạo ảnh</div></div><input type="password" class="key-input" data-service="sd"><button class="btn-save-key" data-service="sd">Lưu</button></div>
+                </div>
+            </div>
+
+            <!-- Trang Creative Hub - Adobe style app launcher -->
+            <div id="page-creative" class="page">
+                <div class="page-header"><h1>🎨 Bộ ứng dụng Sáng tạo</h1></div>
+                <p class="page-desc">Hệ sinh thái ứng dụng giống Adobe Creative Cloud, tất cả tích hợp với AI. AI có thể tự mở và dùng các app này khi bạn chat.</p>
+
+                <div class="creative-grid">
+                    <div class="creative-card app-open" data-app="xphoto">
+                        <div class="creative-icon ps">Ps</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xPhoto</div>
+                            <div class="creative-desc">Chỉnh sửa ảnh raster chuyên nghiệp như Adobe Photoshop</div>
+                            <div class="creative-tags">🖌️ Bút vẽ · 🎨 Lớp · ✂️ Cắt · ✨ AI Fill · Bộ lọc</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xlight">
+                        <div class="creative-icon lr">Lr</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xLight Classic</div>
+                            <div class="creative-desc">Xử lý ảnh nhiếp ảnh chuyên nghiệp như Lightroom</div>
+                            <div class="creative-tags">📷 RAW · 🎚️ Exposure · 🎨 Preset · ✨ AI Mask · Histogram</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xcut">
+                        <div class="creative-icon pr">Pr</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xCut Pro</div>
+                            <div class="creative-desc">Chỉnh sửa video timeline chuyên nghiệp như Premiere Pro</div>
+                            <div class="creative-tags">🎬 Multi-track · ✂️ Cắt cảnh · 🔊 Âm thanh · 🤖 Auto Caption</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xfx">
+                        <div class="creative-icon ae">Ae</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xFX</div>
+                            <div class="creative-desc">Motion Graphics & Hiệu ứng hình ảnh như After Effects</div>
+                            <div class="creative-tags">✨ Keyframe · 🎭 VFX · 🎨 Compositing · 💫 Animation · AI Tracking</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xdraw">
+                        <div class="creative-icon ai">Ai</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xVector</div>
+                            <div class="creative-desc">Vẽ đồ họa vector như Adobe Illustrator</div>
+                            <div class="creative-tags">✏️ Pen Tool · 🖋️ Vector · 📐 Shape · 🎨 Logo · Xuất SVG</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xlayout">
+                        <div class="creative-icon id">Id</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xLayout</div>
+                            <div class="creative-desc">Dàn trang in ấn, sách báo như Adobe InDesign</div>
+                            <div class="creative-tags">📐 Bố cục · 📖 Sách · 📰 Báo · 📄 Brochure · Typography</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xprototype">
+                        <div class="creative-icon xd">Xd</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xPrototype</div>
+                            <div class="creative-desc">Thiết kế UI/UX & Prototype như Adobe XD / Figma</div>
+                            <div class="creative-tags">📱 Mobile · 🖥️ Web · 🧩 Components · ✨ AI Sinh UI</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xaudio">
+                        <div class="creative-icon au">Au</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xAudio</div>
+                            <div class="creative-desc">Chỉnh sửa âm thanh chuyên nghiệp như Adobe Audition</div>
+                            <div class="creative-tags">🎵 Waveform · 🎚️ Mix · 🔇 Khử ồn · 🎤 Thu âm</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xdocs">
+                        <div class="creative-icon dc">Dc</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xDocs</div>
+                            <div class="creative-desc">Soạn thảo văn bản như Microsoft Word / Google Docs</div>
+                            <div class="creative-tags">📝 Văn bản · 📊 Bảng · 🖼️ Chèn ảnh · 📄 Xuất PDF</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xpdf">
+                        <div class="creative-icon pdf">PDF</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xPDF</div>
+                            <div class="creative-desc">Đọc, chỉnh sửa, ký PDF như Adobe Acrobat</div>
+                            <div class="creative-tags">📖 Đọc · ✏️ Chú thích · ✍️ Ký · 🔄 Convert · Gộp file</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xcalc">
+                        <div class="creative-icon calc">🧮</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xCalc</div>
+                            <div class="creative-desc">Máy tính khoa học</div>
+                            <div class="creative-tags">➕ Phép tính · 📐 Đồ thị hàm · 🔬 Khoa học</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+
+                    <div class="creative-card app-open" data-app="xterm">
+                        <div class="creative-icon term">$_</div>
+                        <div class="creative-info">
+                            <div class="creative-name">xTerminal</div>
+                            <div class="creative-desc">Terminal CLI chạy lệnh trực tiếp trên máy</div>
+                            <div class="creative-tags">💻 Bash/PowerShell · 🚀 Auto-complete · 🤖 AI Command</div>
+                        </div>
+                        <button class="creative-open-btn">Mở ➤</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App window - Khi mở ứng dụng Creative -->
+            <div id="app-window" class="app-window hidden">
+                <div class="app-window-header">
+                    <div class="app-window-title" id="appWindowTitle">Ứng dụng</div>
+                    <div class="app-window-controls">
+                        <button class="aw-btn" id="popoutApp">⇱</button>
+                        <button class="aw-btn" id="closeAppWindow">✕</button>
+                    </div>
+                </div>
+                <div class="app-window-body">
+                    <iframe id="appFrame" src="" frameborder="0"></iframe>
+                </div>
+            </div>
+
+            <!-- Trang Cài đặt -->
+            <div id="page-settings" class="page">
+                <div class="page-header"><h1>⚙️ Cài đặt</h1></div>
+                <div class="settings-section">
+                    <h3>Giao diện</h3>
+                    <div class="setting-row"><label>Chủ đề</label><select class="select-input"><option>Tối</option><option>Sáng</option></select></div>
+                    <div class="setting-row"><label>Màu chủ đạo</label>
+                        <div class="color-picker">
+                            <button class="color-option green active"></button>
+                            <button class="color-option blue"></button>
+                            <button class="color-option red"></button>
+                            <button class="color-option yellow"></button>
+                            <button class="color-option purple"></button>
+                            <button class="color-option adobe-pink"></button>
+                        </div>
+                    </div>
+                    <div class="setting-row"><label>Ngôn ngữ</label><select class="select-input"><option>Tiếng Việt</option><option>English</option></select></div>
+                </div>
+                <div class="settings-section">
+                    <h3>Thông tin hệ thống</h3>
+                    <div class="info-row"><span>Phiên bản</span><span>Rune v2.0 4D Creative Edition</span></div>
+                    <div class="info-row"><span>Backend</span><span>C++20 Native</span></div>
+                    <div class="info-row"><span>App wrapper</span><span>Rust Tauri</span></div>
+                    <div class="info-row"><span>Ứng dụng</span><span>12 ứng dụng Creative tích hợp</span></div>
+                    <div class="info-row"><span>Tự động hóa</span><span>Automation Engine built-in</span></div>
+                </div>
+            </div>
+
+            <!-- ⚡ MỤC 6: TRUNG TÂM TỰ ĐỘNG HÓA -->
+            <div id="page-automation" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1>⚡ Trung tâm Tự động hóa</h1>
+                        <p style="color:var(--text-secondary); margin-top:4px; font-size:14px;">Máy tự động làm việc thay bạn. Tích hợp sâu với tất cả công cụ Creative và hệ thống, bạn chỉ cần nói là xong.</p>
+                    </div>
+                    <button class="btn-ai-create" id="aiCreateAutomation">✨ Tạo tự động bằng AI</button>
+                </div>
+
+                <div id="aiAutomationBuilder" class="ai-builder hidden">
+                    <div class="ai-builder-header">
+                        <h3>✨ Tạo Automation bằng lời nói</h3>
+                        <button class="aw-btn" id="closeAiBuilder">✕</button>
+                    </div>
+                    <div class="ai-builder-body">
+                        <p style="color:var(--text-secondary); margin-bottom:12px; font-size:13px;">Mô tả những gì bạn muốn máy tự động làm, ví dụ:</p>
+                        <div class="prompt-examples">
+                            <button class="prompt-example">"Khi chụp ảnh màn hình tự lưu vào thư viện và mở sửa trong xPhoto"</button>
+                            <button class="prompt-example">"Tự động nén video trong Downloads sau 10 phút không dùng"</button>
+                            <button class="prompt-example">"CPU chạy quá 90% 1 phút thì tự đóng app thừa và báo cho tôi"</button>
+                            <button class="prompt-example">"File ảnh mới thì tự chỉnh màu bằng preset Lightroom rồi xuất"</button>
+                            <button class="prompt-example">"Tối thứ 6 tự tóm tắt tin tức chứng khoán tuần rồi lưu thành tài liệu"</button>
+                        </div>
+                        <div style="display:flex; gap:10px; margin-top:16px;">
+                            <input type="text" id="automationPrompt" class="automation-prompt-input" placeholder="Mô tả kịch bản tự động hóa bạn muốn...">
+                            <button class="btn-primary" id="generateAutomation">Tạo quy trình ⚡</button>
+                        </div>
+                        <div id="generatedFlow" class="generated-flow hidden">
+                            <h4 style="margin:16px 0 8px;">✅ Quy trình được tạo tự động:</h4>
+                            <div id="flowSteps" class="flow-steps"></div>
+                            <button class="btn-primary" style="margin-top:12px; background:var(--green);">💾 Lưu và Bật Automation này</button>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="section">
+                    <h2 class="section-title">🚀 Kịch bản có sẵn, 1 click để bật</h2>
+                    <div class="automation-grid">
+                        <div class="auto-card">
+                            <div class="auto-icon">🖼️</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Tự động sửa ảnh chụp màn hình</div>
+                                <div class="auto-desc">Khi chụp màn hình tự mở xPhoto, thêm viền bóng đổ rồi lưu vào thư mục đã chỉnh sửa</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">🎬</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Tự động cắt video cho TikTok/Reels</div>
+                                <div class="auto-desc">Video mới tự cắt tỉ lệ 9:16, thêm nhạc nền và xuất bằng xCut Pro</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">📊</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Báo cáo thị trường 9h sáng hàng ngày</div>
+                                <div class="auto-desc">Tự lấy giá VN-Index và mã theo dõi, gửi thông báo cho bạn</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">💻</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Tối ưu RAM tự động khi quá tải</div>
+                                <div class="auto-desc">RAM > 85% trong 2 phút tự đóng app chạy ngầm giải phóng bộ nhớ</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">📁</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Tự sắp xếp thư mục Downloads</div>
+                                <div class="auto-desc">Mỗi tối phân loại file vào Ảnh/Video/Tài liệu/Code/File nén đúng thư mục</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">🎵</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Tự tách nhạc từ video</div>
+                                <div class="auto-desc">Khi thêm video mới tự dùng xAudio tách ra file MP3 chất lượng cao</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">⚠️</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Cảnh báo nhiệt độ quá cao</div>
+                                <div class="auto-desc">CPU > 90°C trong 30s tự động cảnh báo và đóng tác vụ nặng</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="auto-card">
+                            <div class="auto-icon">🔋</div>
+                            <div class="auto-info">
+                                <div class="auto-title">Tiết kiệm pin khi còn dưới 20%</div>
+                                <div class="auto-desc">Tự giảm sáng màn hình, tắt app nền để kéo dài thời lượng pin</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">🧩 Flow builder - Tạo quy trình kéo thả</h2>
+                    <div class="flow-builder" id="flowBuilder">
+                        <div class="flow-step trigger">
+                            <div class="step-icon">🎯</div>
+                            <div class="step-content">
+                                <div class="step-type">🎯 KÍCH HOẠT (TRIGGER)</div>
+                                <select class="select-input" style="margin-top:6px;">
+                                    <option>Khi có file mới trong thư mục...</option>
+                                    <option>Khi CPU/GPU vượt ngưỡng...</option>
+                                    <option>Theo lịch định kỳ hàng ngày...</option>
+                                    <option>Khi khởi động máy...</option>
+                                    <option>Khi kết nối USB...</option>
+                                    <option>Khi pin yếu...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flow-connector">▼</div>
+                        <div class="flow-step condition">
+                            <div class="step-icon">🔍</div>
+                            <div class="step-content">
+                                <div class="step-type">🔍 ĐIỀU KIỆN</div>
+                                <div style="margin-top:6px; color:var(--text-secondary); font-size:13px;">Nếu file là ảnh (.jpg/.png/.raw) và dung lượng > 500KB</div>
+                            </div>
+                        </div>
+                        <div class="flow-connector">▼</div>
+                        <div class="flow-step action">
+                            <div class="step-icon">▶️</div>
+                            <div class="step-content">
+                                <div class="step-type">▶️ HÀNH ĐỘNG 1</div>
+                                <div style="margin-top:6px; color:var(--text-secondary); font-size:13px;">Mở xLight, áp dụng preset "Vivid", chỉnh Exposure +0.3</div>
+                            </div>
+                        </div>
+                        <div class="flow-connector">▼</div>
+                        <div class="flow-step action">
+                            <div class="step-icon">💾</div>
+                            <div class="step-content">
+                                <div class="step-type">💾 HÀNH ĐỘNG 2</div>
+                                <div style="margin-top:6px; color:var(--text-secondary); font-size:13px;">Xuất JPG 90% chất lượng vào /Ảnh/Đã chỉnh sửa</div>
+                            </div>
+                        </div>
+                        <div class="flow-connector">▼</div>
+                        <div class="flow-step success">
+                            <div class="step-icon">🔔</div>
+                            <div class="step-content">
+                                <div class="step-type">🔔 KẾT THÚC</div>
+                                <div style="margin-top:6px; color:var(--text-secondary); font-size:13px;">Gửi thông báo "Đã xử lý xong ảnh"</div>
+                            </div>
+                        </div>
+                        <button class="add-step-btn">+ Thêm bước hành động</button>
+                        <div style="display:flex; gap:10px; margin-top:16px;">
+                            <button class="btn-primary">💾 Lưu quy trình</button>
+                            <button class="btn-secondary">▶️ Chạy thử</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">📋 Nhật ký hoạt động</h2>
+                    <div class="log-container">
+                        <div class="log-item success"><span class="log-time">10:42:05</span><span class="log-status">✅</span><span class="log-text">Đã xử lý ảnh chụp màn hình mới, thêm viền bóng</span></div>
+                        <div class="log-item"><span class="log-time">09:00:01</span><span class="log-status">📊</span><span class="log-text">Lấy dữ liệu VN-Index 1287.4 (-0.29%), gửi thông báo</span></div>
+                        <div class="log-item warn"><span class="log-time">08:15:32</span><span class="log-status">⚠️</span><span class="log-text">CPU 92°C, đã cảnh báo và đóng ứng dụng nền</span></div>
+                        <div class="log-item success"><span class="log-time">00:00:02</span><span class="log-status">📁</span><span class="log-text">Đã tự sắp xếp 142 file trong Downloads</span></div>
+                        <div class="log-item"><span class="log-time">22:10:45</span><span class="log-status">🎬</span><span class="log-text">Chuyển video recording.mp4 sang tỉ lệ 9:16 cho Shorts</span></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

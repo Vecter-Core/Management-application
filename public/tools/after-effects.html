@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>xFX - Motion Graphics & Hiệu ứng</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Segoe UI", sans-serif; background:#1a1a1a; color:#d0d0d0; height:100vh; display:flex; flex-direction:column; font-size:13px; }
+        .topbar { height:36px; background:#9999ff; color:#1a0033; display:flex; align-items:center; padding:0 12px; gap:8px; font-weight:600; font-size:13px; }
+        .workspace { flex:1; display:flex; }
+        .proj-panel { width:240px; background:#252525; border-right:1px solid #3a3a3a; padding:10px; }
+        .panel-title { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:8px; font-weight:600; }
+        .proj-item { padding:5px 8px; font-size:12px; cursor:pointer; border-radius:3px; }
+        .proj-item:hover { background:#333; }
+        .comp-item { padding:6px 8px; background:#2f2f2f; border-radius:4px; margin-bottom:4px; cursor:pointer; font-size:12px; }
+        
+        .center-area { flex:1; display:flex; flex-direction:column; }
+        .comp-viewer { flex:1; background:#0a0a0a; display:flex; align-items:center; justify-content:center; position:relative; }
+        .comp-screen { width:70%; aspect-ratio:16/9; background:linear-gradient(45deg, #1a0033, #330066, #003366); display:flex; align-items:center; justify-content:center; border:1px solid #333; position:relative; }
+        .comp-screen-text { font-size:24px; color:white; text-shadow:0 0 20px #9999ff; font-weight:300; }
+        .safe-area { position:absolute; inset:10%; border:1px dashed rgba(255,255,255,0.2); pointer-events:none; }
+        .viewer-controls { position:absolute; bottom:10px; background:rgba(0,0,0,0.7); padding:6px 12px; border-radius:6px; font-family:monospace; font-size:12px; color:white; display:flex; gap:12px; align-items:center; }
+        .time-display { font-size:16px; font-weight:600; color:#9999ff; }
+        
+        .effects-controls { height:260px; background:#252525; border-top:1px solid #3a3a3a; display:flex; }
+        .effect-controls-panel { flex:1; padding:10px; overflow-y:auto; }
+        .effect-param { margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+        .param-label { width:120px; font-size:12px; color:#aaa; }
+        .param-slider { flex:1; accent-color:#9999ff; }
+        
+        .timeline-area { height:240px; background:#1e1e1e; border-top:2px solid #333; display:flex; }
+        .timeline-left { width:200px; background:#252525; border-right:1px solid #3a3a3a; }
+        .timeline-left .layer-row { padding:8px 10px; border-bottom:1px solid #333; font-size:12px; display:flex; align-items:center; gap:6px; }
+        .layer-type { font-size:14px; }
+        .timeline-right { flex:1; position:relative; overflow-x:auto; }
+        .time-ruler { height:24px; background:#222; border-bottom:1px solid #333; position:relative; }
+        .time-marker { position:absolute; top:0; bottom:0; width:2px; background:#ff4040; z-index:10; left:100px; }
+        .layer-track { height:32px; border-bottom:1px solid #2a2a2a; position:relative; }
+        .layer-key { position:absolute; top:50%; transform:translateY(-50%); width:8px; height:8px; background:#9999ff; transform:rotate(45deg) translateY(-50%); }
+        .layer-bar { position:absolute; top:4px; bottom:4px; background:linear-gradient(90deg, #6666cc, #9999ff); border-radius:3px; left:150px; width:300px; }
+        .bar-text { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:11px; color:white; white-space:nowrap; }
+        
+        .right-panel { width:280px; background:#252525; border-left:1px solid #3a3a3a; padding:10px; overflow-y:auto; }
+        .effects-list { font-size:12px; }
+        .effect-category { padding:4px 0; color:#888; font-weight:600; text-transform:uppercase; font-size:10px; margin-top:8px; }
+        .effect-entry { padding:4px 8px; cursor:pointer; border-radius:3px; }
+        .effect-entry:hover { background:#333; }
+        
+        .statusbar { height:22px; background:#454545; color:#ccc; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span>✨ xFX CC 2026</span>
+        <span style="font-weight:400; margin-left:10px; opacity:0.8;">Motion Graphics · Visual Effects · Compositing</span>
+        <div style="margin-left:auto;">✨ AI Keyframe · Auto Tracking</div>
+    </div>
+
+    <div class="workspace">
+        <div class="proj-panel">
+            <div class="panel-title">Project</div>
+            <div class="proj-item">📁 Footage</div>
+            <div class="proj-item">📁 Compositions</div>
+            <div class="proj-item">📁 Assets</div>
+            <div class="proj-item">📁 Solids</div>
+            <div style="margin-top:12px;"></div>
+            <div class="panel-title">Compositions</div>
+            <div class="comp-item">🎞️ Main Comp 1080p</div>
+            <div class="comp-item">🎞️ Intro Animation</div>
+            <div class="comp-item">🎞️ Lower Third</div>
+            <div class="comp-item">🎞️ Logo Reveal</div>
+        </div>
+
+        <div class="center-area">
+            <div class="comp-viewer">
+                <div class="comp-screen">
+                    <div class="safe-area"></div>
+                    <div class="comp-screen-text">Composition Preview</div>
+                </div>
+                <div class="viewer-controls">
+                    <button style="background:none; border:none; color:white; cursor:pointer; font-size:14px;">⏮</button>
+                    <button style="background:none; border:none; color:white; cursor:pointer; font-size:14px;">▶</button>
+                    <button style="background:none; border:none; color:white; cursor:pointer; font-size:14px;">⏭</button>
+                    <div class="time-display">00:00:05:00</div>
+                    <span>100%</span>
+                    <span>Full</span>
+                </div>
+            </div>
+
+            <div class="effects-controls">
+                <div class="effect-controls-panel">
+                    <div class="panel-title">Effect Controls - Motion Blur</div>
+                    <div class="effect-param"><span class="param-label">Shutter Angle</span><input type="range" class="param-slider" min="0" max="720" value="180"><span style="font-family:monospace; width:50px;">180°</span></div>
+                    <div class="effect-param"><span class="param-label">Shutter Phase</span><input type="range" class="param-slider" min="-180" max="180" value="0"><span style="font-family:monospace; width:50px;">0°</span></div>
+                    <div class="effect-param"><span class="param-label">Samples</span><input type="range" class="param-slider" min="2" max="64" value="16"><span style="font-family:monospace; width:50px;">16</span></div>
+                    
+                    <div class="panel-title" style="margin-top:12px;">Transform</div>
+                    <div class="effect-param"><span class="param-label">Position</span><input type="text" value="960, 540" style="flex:1; background:#1a1a1a; border:1px solid #444; color:#ddd; padding:4px 8px; border-radius:3px; font-family:monospace; font-size:11px;"></div>
+                    <div class="effect-param"><span class="param-label">Scale</span><input type="range" class="param-slider" min="0" max="200" value="100"><span style="font-family:monospace; width:50px;">100%</span></div>
+                    <div class="effect-param"><span class="param-label">Rotation</span><input type="range" class="param-slider" min="0" max="360" value="0"><span style="font-family:monospace; width:50px;">0°</span></div>
+                    <div class="effect-param"><span class="param-label">Opacity</span><input type="range" class="param-slider" min="0" max="100" value="100"><span style="font-family:monospace; width:50px;">100%</span></div>
+                </div>
+            </div>
+
+            <div class="timeline-area">
+                <div class="timeline-left">
+                    <div class="layer-row"><span class="layer-type">📹</span> Video Layer</div>
+                    <div class="layer-row"><span class="layer-type">✨</span> Adjustment Layer</div>
+                    <div class="layer-row"><span class="layer-type">🔤</span> Text Animation</div>
+                    <div class="layer-row"><span class="layer-type">🟦</span> Solid - Blue</div>
+                    <div class="layer-row"><span class="layer-type">💡</span> Light Layer</div>
+                    <div class="layer-row"><span class="layer-type">🎥</span> Camera</div>
+                </div>
+                <div class="timeline-right" style="min-width:800px;">
+                    <div class="time-ruler">
+                        <div class="time-marker"></div>
+                    </div>
+                    <div class="layer-track"><div class="layer-bar" style="left:80px; width:400px;"><span class="bar-text">Video.mp4</span><div class="layer-key" style="left:20px;"></div><div class="layer-key" style="left:380px;"></div></div></div>
+                    <div class="layer-track"><div class="layer-bar" style="left:120px; width:320px; background:linear-gradient(90deg,#cc6600,#ffaa44);"><span class="bar-text">Adjustment</span></div></div>
+                    <div class="layer-track"><div class="layer-bar" style="left:150px; width:200px; background:linear-gradient(90deg,#0066cc,#44aaff);"><span class="bar-text">Title Animation</span><div class="layer-key" style="left:10px; background:#44aaff;"></div></div></div>
+                    <div class="layer-track"><div class="layer-bar" style="left:0; width:600px; background:linear-gradient(90deg,#004499,#0066dd); opacity:0.6;"><span class="bar-text">Background Solid</span></div></div>
+                    <div class="layer-track"></div>
+                    <div class="layer-track"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-title">Effects & Presets</div>
+            <div class="effects-list">
+                <div class="effect-category">3D Channel</div>
+                <div class="effect-category">Audio</div>
+                <div class="effect-category">Blur & Sharpen</div>
+                <div class="effect-entry">Gaussian Blur</div>
+                <div class="effect-entry">Motion Blur</div>
+                <div class="effect-entry">Camera Lens Blur</div>
+                <div class="effect-entry">Unsharp Mask</div>
+                <div class="effect-category">Color Correction</div>
+                <div class="effect-entry">Curves</div>
+                <div class="effect-entry">Levels</div>
+                <div class="effect-entry">Hue/Saturation</div>
+                <div class="effect-entry">Color Balance</div>
+                <div class="effect-category">Distort</div>
+                <div class="effect-category">Generate</div>
+                <div class="effect-entry">Fill</div>
+                <div class="effect-entry">Gradient Ramp</div>
+                <div class="effect-entry">Lens Flare</div>
+                <div class="effect-category">Keying</div>
+                <div class="effect-entry">Keylight (1.2)</div>
+                <div class="effect-category">Stylize</div>
+                <div class="effect-entry">Glow</div>
+                <div class="effect-category">Text</div>
+                <div class="effect-category">✨ AI Effects</div>
+                <div class="effect-entry">AI Rotoscoping</div>
+                <div class="effect-entry">AI Upscale</div>
+                <div class="effect-entry">AI Slow Motion</div>
+                <div class="effect-entry">AI Background Remove</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span>Main Comp 1920×1080 · 29.97fps · Duration 0:00:30:00</span>
+        <span style="margin-left:auto;">✨ Motion Graphics, VFX, compositing chuyên nghiệp giống After Effects</span>
+    </div>
+</body>
+</html>
