@@ -19,7 +19,8 @@ LIB_SRC  := src/cpp/system_monitor.cpp \
             src/cpp/market_data.cpp \
             src/cpp/cli_runner.cpp \
             src/cpp/key_manager.cpp \
-            src/cpp/web_scraper.cpp
+            src/cpp/web_scraper.cpp \
+            src/cpp/system_probe.cpp
 LIB_OBJ  := $(LIB_SRC:.cpp=.o)
 SERVER   := build/rune_server
 STATIC   := build/libxkiro_backend.a
@@ -61,13 +62,13 @@ web:
 	cd public && python3 -m http.server $(PORT) --bind 0.0.0.0
 
 test: $(SERVER)
-	@RUNE_PORT=$(PORT) RUNE_BIND=$(BIND) ./$(SERVER) & sleep 1; \
+	@RUNE_PORT=$(PORT) RUNE_BIND=$(BIND) ./$(SERVER) & SRV=$$!; sleep 1; \
 	echo "--- /api/health";   curl -s http://127.0.0.1:$(PORT)/api/health; echo; \
 	echo "--- /api/system";   curl -s http://127.0.0.1:$(PORT)/api/system | head -c 300; echo; \
 	echo "--- /api/market";   curl -s "http://127.0.0.1:$(PORT)/api/market?country=VN" | head -c 200; echo; \
 	echo "--- /api/cli";      curl -s -X POST http://127.0.0.1:$(PORT)/api/cli -H 'Content-Type: application/json' -d '{"command":"uname -a","timeout":5}'; echo; \
 	echo "--- giao diện";     curl -s -o /dev/null -w "index.html %{http_code}\n" http://127.0.0.1:$(PORT)/; \
-	pkill -f rune_server
+	kill $$SRV 2>/dev/null || true
 
 clean:
 	rm -rf build $(LIB_OBJ)

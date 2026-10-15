@@ -26,8 +26,9 @@
 cd public && python3 -m http.server 8080
 ```
 
-Mở `http://localhost:8080`. Với Cách 2, các API `/api/*` không tồn tại → dashboard tự chuyển sang
-**chế độ trình duyệt (mô phỏng)** và xTerminal dùng **shell ảo**; app vẫn chạy đầy đủ, có nhãn ghi rõ nguồn dữ liệu.
+Mở `http://localhost:8080`. Với Cách 2, các API `/api/*` không tồn tại → dashboard chuyển sang
+**chế độ trình duyệt**: mọi ô số liệu máy hiển thị **`—`** kèm lý do (trình duyệt không có quyền đọc
+`/proc`), xTerminal dùng **shell ảo** và nói rõ. RUNE **không bịa số** ở chế độ này.
 
 > **AI Chat cần khóa API.** Vào trang **🔑 Khóa** (hoặc nút *Nhập khóa AI* ngay trong khung chat) và dán khóa của
 > OpenAI / Anthropic / Gemini / Groq / DeepSeek / OpenRouter / endpoint tùy chỉnh.
@@ -115,7 +116,10 @@ Management-application/
 ├── src/cpp/                     # Backend C++20 (không phụ thuộc thư viện ngoài)
 │   ├── server_main.cpp          # HTTP server: static + /api/* (body Content-Length, OPTIONS, mã trạng thái thật)
 │   ├── system_monitor.cpp       # CPU/RAM/GPU/disk/net từ /proc, sysinfo, statvfs, nvidia-smi
-│   ├── market_data.cpp          # chỉ số + cổ phiếu theo quốc gia (mô hình hoá, ghi rõ nguồn)
+│   ├── system_probe.cpp         # TIẾN TRÌNH/KẾT NỐI/BẢO MẬT/Ổ ĐĨA/NHIỆT ĐỘ/PING/KILL/TỐI ƯU — đọc thật
+│   │                            #   /proc, /sys, lsblk, ufw/nft, apt, smartctl, utmp, getifaddrs
+│   ├── market_data.cpp          # World Bank (GDP/CPI/thất nghiệp/lãi suất) + Yahoo Finance (chỉ số,
+│   │                            #   giá cổ phiếu, chuỗi 30 ngày) — gọi bằng curl, cache 6 giờ
 │   ├── cli_runner.cpp           # thực thi lệnh bất đồng bộ (FFI/streaming)
 │   ├── key_manager.cpp          # kho khóa ~/.config/xkiro/keys.json (JSON tự viết, chmod 600)
 │   ├── web_scraper.cpp          # xkiro_web_fetch / web_search / free_string (qua curl)
@@ -140,7 +144,18 @@ Management-application/
 |---|---|---|
 | `GET` | `/api/health` | trạng thái server, uptime, `cli_enabled`, thư mục public |
 | `GET` | `/api/system` | CPU %, nhiệt độ, tên CPU/GPU, VRAM, RAM, **`disk_total/disk_used/disk_free`**, disk I/O, net I/O, `"simulated":false` |
-| `GET` | `/api/market?country=VN` | chỉ số kinh tế + bảng cổ phiếu (`VN/US/JP/CN/EU`) |
+| `GET` | `/api/processes?limit=40` | **tiến trình thật** từ `/proc`: PID, tên, user, cmdline, exe, %CPU (đo giữa 2 mẫu), RSS, số luồng, **độ tin cậy** (binary hệ thống / thư mục người dùng / đã bị xóa / thư mục tạm) |
+| `GET` | `/api/connections?limit=80` | **kết nối thật** từ `/proc/net/tcp*`+`udp*`: local/remote, trạng thái, PID + tên tiến trình sở hữu socket, số cổng mở ra ngoài máy |
+| `GET` | `/api/security` | **quét bảo mật thật** (12 mục): OS/kernel, ufw/nft/iptables, AppArmor/SELinux, cập nhật apt, mã hóa LUKS, antivirus, SMART, cổng lắng nghe, tiến trình đáng ngờ, phiên đăng nhập, sshd, quyền của server — mỗi mục kèm `source` (lệnh/file đã kiểm tra) |
+| `GET` | `/api/disks` | **ổ đĩa thật** (`statvfs` từng mount) + **nhiệt độ thật** (`/sys/class/thermal`, `hwmon`) |
+| `GET`/`POST` | `/api/ping?host=1.1.1.1&port=443&count=4` | **ping thật**: đo thời gian bắt tay TCP (không phải ICMP — ICMP cần root), trả min/avg/max/loss + từng mẫu |
+| `GET` | `/api/netinfo` | hostname, **IP thật từng card mạng** (`getifaddrs`), gateway (`/proc/net/route`), DNS (`resolv.conf`), IP công cộng + nhà mạng (hỏi dịch vụ ngoài bằng curl, cache 10 phút) |
+| `GET` | `/api/optimize` | **báo cáo tối ưu thật**: `/proc/meminfo`, dung lượng cache đo bằng `du`, journal, top tiến trình ngốn RAM, danh sách hành động khả dụng |
+| `POST` | `/api/optimize/run` `{"id","confirm"}` | **chạy thật** 1 lệnh trong whitelist (`sync`, `drop_caches`, `apt_clean`, `journal_vacuum`, `user_cache`, `tmp_clean`); mục cần root / xóa dữ liệu bị từ chối nếu thiếu quyền hoặc thiếu `confirm:"1"` |
+| `POST` | `/api/kill` `{"pid","force"}` | **kết thúc tiến trình thật** (SIGTERM → SIGKILL); từ chối PID của chính server và PID không tồn tại |
+| `GET` | `/api/market?country=VN[&refresh=1]` | **World Bank + Yahoo Finance thật**: chỉ số, GDP/lạm phát/thất nghiệp/lãi suất (kèm năm số liệu), bảng cổ phiếu, chuỗi 30 ngày, `source`/`note`/`simulated`/`stock_errors` |
+| `GET` | `/api/chart?symbol=VIC` | chuỗi giá thật của 1 mã (Yahoo, không cache) |
+| `GET`/`POST` | `/api/web/fetch?url=`, `/api/web/search?q=` | tải trang / tìm kiếm **qua backend** (không bị CORS chặn) |
 | `GET` | `/api/keys[?service=x&reveal=1]` | danh sách khóa (mặc định đã che) |
 | `POST` | `/api/keys` `{"service","key"}` | lưu khóa (key rỗng = xóa) |
 | `DELETE` | `/api/keys?service=x` | xóa khóa |
@@ -162,7 +177,7 @@ Có `OPTIONS` (CORS preflight), `HEAD`, mã trạng thái đúng (400/403/404/40
 
 ## 📦 Thư viện offline trong `public/vendor/`
 
-App **không phụ thuộc CDN** cho các chức năng nặng (CDN chỉ dùng cho Chart.js ở trang dashboard).
+App **không phụ thuộc CDN** — kể cả Chart.js ở dashboard cũng đã được tải về `vendor/`.
 
 | File | Thư viện | Phiên bản | License |
 |---|---|---|---|
@@ -170,6 +185,7 @@ App **không phụ thuộc CDN** cho các chức năng nặng (CDN chỉ dùng c
 | `pdf-lib.min.js` | pdf-lib (global `PDFLib`) | 1.17.1 | MIT |
 | `pdf-lib-fontkit.umd.min.js` | @pdf-lib/fontkit (global `fontkit`) — **bắt buộc** để nhúng font TTF | 1.1.1 | MIT |
 | `DejaVuSans.ttf`, `DejaVuSans-Bold.ttf` | DejaVu (hỗ trợ dấu tiếng Việt — Helvetica của PDF không encode được) | 2.37 | license tự do của DejaVu |
+| `chart.umd.js` | Chart.js (global `Chart`) — vẽ biểu đồ dashboard | 4.4.7 | MIT |
 
 Chi tiết + cách nâng cấp: [`public/vendor/README.md`](public/vendor/README.md). **Không sửa tay các file này** — muốn đổi phiên bản thì tải lại.
 
@@ -177,19 +193,43 @@ Chi tiết + cách nâng cấp: [`public/vendor/README.md`](public/vendor/README
 
 ## ✅ Trung thực về dữ liệu: cái gì thật, cái gì mô phỏng
 
+**Nguyên tắc: không có số liệu giả ở bất kỳ đâu.** Cái gì không đo được thì hiện `—` kèm lý do thật.
+
 | Thành phần | Trạng thái |
 |---|---|
 | AI Chat (khi có khóa) | **Thật** — gọi API nhà cung cấp, streaming, tool calling |
-| CPU/RAM/disk/net (khi chạy backend C++) | **Thật** — đọc `/proc`, `sysinfo`, `statvfs` |
-| Dashboard khi KHÔNG có backend | Mô phỏng — UI gắn nhãn *"○ Chế độ trình duyệt: dữ liệu mô phỏng"* |
-| Chạy lệnh CLI (`/api/cli`) | **Thật** khi backend sống; xTerminal tự rơi về shell ảo và nói rõ |
+| CPU/GPU/RAM/ổ đĩa/tốc độ mạng | **Thật** — `/proc/stat`, `/proc/meminfo`, `/proc/diskstats`, `statvfs`, `nvidia-smi` |
+| Nhiệt độ | **Thật** nếu máy exposes cảm biến (`/sys/class/thermal`, `hwmon`); VM/container thường không có → ghi rõ *"không đọc được cảm biến nào"* |
+| Danh sách tiến trình + %CPU + RAM | **Thật** — `/proc/<pid>/{stat,status,cmdline,exe}`; %CPU đo giữa 2 mẫu cách nhau ≥400 ms nên không bị phóng đại |
+| Kết nối mạng / cổng mở | **Thật** — `/proc/net/tcp·tcp6·udp·udp6` + map inode→PID |
+| Quét bảo mật & điểm sức khỏe | **Thật** — kết quả 12 phép kiểm tra (ufw/nft/iptables, AppArmor/SELinux, `apt list --upgradable`, `lsblk` LUKS, dpkg antivirus, `smartctl`, cổng mở ra ngoài, tiến trình chạy từ thư mục tạm/binary đã xóa, `utmp`, sshd, `getuid`). Điểm /100 **tính từ chính kết quả đó**, không phải hằng số |
+| Ping | **Thật** — đo thời gian bắt tay TCP tới host:cổng (ghi rõ không phải ICMP vì ICMP cần root) |
+| IP local/gateway/DNS | **Thật** — `getifaddrs`, `/proc/net/route`, `/etc/resolv.conf` |
+| IP public / nhà mạng (ISP) | **Thật** nếu máy ra được Internet (hỏi `ipapi.co` bằng curl, cache 10 phút); không ra được → `—` + lý do |
+| Kết thúc tiến trình | **Thật** — `kill(2)` SIGTERM/SIGKILL, có hộp xác nhận, từ chối PID của chính server |
+| Dọn dẹp / tối ưu | **Thật** — đo trước bằng `du`+`/proc/meminfo`, chỉ chạy lệnh trong whitelist, mục xóa dữ liệu phải xác nhận |
+| Thị trường: GDP/lạm phát/thất nghiệp/lãi suất | **Thật** — World Bank Open Data, kèm **năm của số liệu** (vd 2023) |
+| Thị trường: chỉ số + giá cổ phiếu + biểu đồ | **Thật** — Yahoo Finance chart API (backend gọi hộ để tránh CORS); biểu đồ vẽ **chuỗi giá thật 30 ngày**, không sinh ngẫu nhiên |
+| Khi không gọi được Yahoo/World Bank | `simulated:true` + `note` nêu lý do (mạng/chặn/thiếu `curl`), các ô hiện `—`, **không có giá trị tham khảo tĩnh nào được trộn vào** |
+| Dashboard khi KHÔNG có backend | **Không mô phỏng** — mọi ô hiện `—` + nhãn *"○ Chưa có backend C++: không đo được"* |
+| Chạy lệnh CLI (`/api/cli`) | **Thật** khi backend sống và bind loopback; xTerminal tự rơi về shell ảo và nói rõ |
 | 12 app Creative | **Thật** — xử lý ảnh/audio/video/PDF ngay trong trình duyệt bằng API web chuẩn |
 | Xuất video (xCut/xFX) | **Thật** nhưng theo thời gian thực (MediaRecorder) — video 30s thì xuất ~30s |
-| Số liệu thị trường `/api/market` | Mô hình hoá theo quốc gia trong `market_data.cpp`, chuỗi `source` ghi rõ |
-| Ping ở dashboard | Chưa đo → hiện `—` (không bịa số) |
+| Chat khi chưa có khóa AI | Engine cục bộ, **ghi rõ là chế độ offline** — nhưng các tool nó gọi (hệ thống, CLI, app) vẫn là thao tác thật |
 
-Đã kiểm bằng harness (nạp từng app trong môi trường DOM giả lập, đối chiếu mọi `data-action`
-với handler đã đăng ký): **12/12 app không còn nút chết**, không lỗi cú pháp, không id thiếu.
+### Biến môi trường để test dữ liệu thị trường offline
+
+```bash
+RUNE_YAHOO_BASE=http://127.0.0.1:8098/yahoo \
+RUNE_WORLDBANK_BASE=http://127.0.0.1:8098/wb \
+RUNE_IPINFO_URL=http://127.0.0.1:8098/ip ./build/rune_server
+```
+
+Đã kiểm bằng harness (jsdom nạp `index.html` + `core.js` + `app.js`, `fetch` trỏ vào backend C++
+đang chạy thật): **25/25 khẳng định đạt** — tiến trình/kết nối/bảo mật/ổ đĩa/ping/tối ưu đều là số
+đo thật, thị trường hoặc là giá thật hoặc `—` kèm lý do, **0 lỗi JS**, **0 nút chết** ở dashboard.
+Kiểm lần thứ hai với nguồn dữ liệu thị trường (JSON đúng định dạng Yahoo/World Bank): chỉ số, 12/12
+mã cổ phiếu, 4 chỉ tiêu kinh tế và biểu đồ 30 điểm đều hiện đúng.
 
 ---
 

@@ -21,6 +21,7 @@ set(CPP_SOURCES
     src/cpp/cli_runner.cpp
     src/cpp/key_manager.cpp
     src/cpp/web_scraper.cpp
+    src/cpp/system_probe.cpp
 )
 
 add_library(xkiro_backend STATIC ${CPP_SOURCES})

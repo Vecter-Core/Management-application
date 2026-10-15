@@ -138,24 +138,35 @@
                             </div>
                             <div class="net-info-row">
                                 <span class="net-label">Trạng thái:</span>
-                                <span class="net-value status-good">Đã kết nối</span>
+                                <span class="net-value" id="netStatus">đang kiểm tra…</span>
                             </div>
                             <div class="net-info-row">
-                                <span class="net-label">Ping:</span>
-                                <span class="net-value" id="pingVal">-- ms</span>
+                                <span class="net-label">Ping (đo TCP thật):</span>
+                                <span class="net-value" id="pingVal">— ms</span>
                             </div>
                             <div class="net-info-row">
                                 <span class="net-label">IP Public:</span>
-                                <span class="net-value" id="publicIp">127.0.0.1</span>
+                                <span class="net-value" id="publicIp">—</span>
                             </div>
                             <div class="net-info-row">
                                 <span class="net-label">IP Local:</span>
-                                <span class="net-value">192.168.1.100</span>
+                                <span class="net-value" id="localIp">—</span>
                             </div>
                             <div class="net-info-row">
-                                <span class="net-label">ISP:</span>
-                                <span class="net-value">Viettel / VNPT</span>
+                                <span class="net-label">ISP / nhà mạng:</span>
+                                <span class="net-value" id="ispVal">—</span>
                             </div>
+                            <div class="net-info-row">
+                                <span class="net-label">Cổng mở ra ngoài:</span>
+                                <span class="net-value" id="openPorts">—</span>
+                            </div>
+                            <div class="ping-row">
+                                <input type="text" id="pingHost" class="mini-input" value="1.1.1.1" placeholder="host hoặc IP">
+                                <input type="number" id="pingPort" class="mini-input narrow" value="443" min="1" max="65535" title="Cổng TCP">
+                                <button class="btn-fix" id="pingBtn">⏱️ Đo thật</button>
+                            </div>
+                            <div class="ping-result" id="pingResult">Chưa đo. Bấm “Đo thật” — backend sẽ mở kết nối TCP tới host/cổng
+                                và đo thời gian bắt tay (không phải ICMP, vì ICMP cần quyền root).</div>
                         </div>
 
                         <div class="net-card">
@@ -186,32 +197,9 @@
                                 <span class="net-title">Kết nối đang hoạt động</span>
                             </div>
                             <div class="connection-list" id="connectionList">
-                                <div class="conn-item">
-                                    <span class="conn-proto">TCP</span>
-                                    <span class="conn-ip">192.168.1.100:54231 → 142.250.xxx.xxx:443</span>
-                                    <span class="conn-status good">HTTPS</span>
-                                </div>
-                                <div class="conn-item">
-                                    <span class="conn-proto">TCP</span>
-                                    <span class="conn-ip">192.168.1.100:54234 → 104.16.xxx.xxx:443</span>
-                                    <span class="conn-status good">HTTPS</span>
-                                </div>
-                                <div class="conn-item">
-                                    <span class="conn-proto">UDP</span>
-                                    <span class="conn-ip">0.0.0.0:53 → DNS Server</span>
-                                    <span class="conn-status warn">DNS</span>
-                                </div>
-                                <div class="conn-item">
-                                    <span class="conn-proto">TCP</span>
-                                    <span class="conn-ip">0.0.0.0:8080 → Local Server</span>
-                                    <span class="conn-status good">Rune</span>
-                                </div>
-                                <div class="conn-item">
-                                    <span class="conn-proto">TCP</span>
-                                    <span class="conn-ip">192.168.1.100:54289 → 185.xxx.xxx.xxx:443</span>
-                                    <span class="conn-status bad">CẢNH BÁO</span>
-                                </div>
+                                <div class="conn-empty" id="connEmpty">Đang đọc kết nối thật từ /proc/net/tcp…</div>
                             </div>
+                            <div class="src-line" id="connSource"></div>
                         </div>
                     </div>
                 </section>
@@ -223,97 +211,32 @@
                     <div class="health-overview">
                         <div class="health-score">
                             <div class="score-circle" id="scoreCircle">
-                                <div class="score-num" id="healthScore">87</div>
+                                <div class="score-num" id="healthScore">—</div>
                                 <div class="score-label">/100</div>
                             </div>
                             <div class="score-info">
-                                <div style="font-size:18px; font-weight:700; margin-bottom:4px;">Tình trạng: TỐT</div>
-                                <div style="color:var(--text-secondary); font-size:13px;">Máy tính của bạn an toàn, có 1 mục cần chú ý</div>
-                                <button class="btn-scan" id="quickScanBtn">🔍 Quét nhanh</button>
+                                <div style="font-size:18px; font-weight:700; margin-bottom:4px;" id="healthStatus">Chưa quét</div>
+                                <div style="color:var(--text-secondary); font-size:13px;" id="healthSummary">Bấm “Quét thật”: backend C++ sẽ kiểm tra tường lửa, AppArmor/SELinux,
+                                    cập nhật apt, mã hóa ổ đĩa, SMART, cổng đang mở ra ngoài, tiến trình đáng ngờ và quyền của chính server.</div>
+                                <button class="btn-scan" id="quickScanBtn">🔍 Quét thật</button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="security-grid">
-                        <div class="security-item good">
-                            <div class="sec-icon">🔰</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Tường lửa (Firewall)</div>
-                                <div class="sec-status">Đang bật</div>
-                                <div class="sec-desc">Tường lửa Windows/Linux đang hoạt động, chặn kết nối đáng ngờ</div>
-                            </div>
-                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-                        </div>
+                    <div class="security-grid" id="securityGrid">
+                        <div class="sec-empty">Chưa quét. Bấm “🔍 Quét thật” ở trên — từng mục sẽ được đọc trực tiếp
+                            từ máy (ufw/nftables/iptables, AppArmor/SELinux, apt, lsblk, smartctl, /proc/net, utmp…).</div>
+                    </div>
+                    <div class="src-line" id="securitySource"></div>
 
-                        <div class="security-item good">
-                            <div class="sec-icon">🛡️</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Antivirus / Windows Defender</div>
-                                <div class="sec-status">Đang hoạt động</div>
-                                <div class="sec-desc">Cơ sở dữ liệu virus được cập nhật hôm nay</div>
-                            </div>
-                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    <div class="optimize-panel" id="optimizePanel">
+                        <div class="optimize-head">
+                            <h3>⚡ Tối ưu bộ nhớ &amp; ổ đĩa (số đo thật)</h3>
+                            <button class="btn-fix" id="optimizeRefresh">📖 Đọc lại</button>
                         </div>
-
-                        <div class="security-item warn">
-                            <div class="sec-icon">⚠️</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Cập nhật hệ thống</div>
-                                <div class="sec-status">Có 2 bản cập nhật đang chờ</div>
-                                <div class="sec-desc">Bản cập nhật bảo mật quan trọng được phát hành 2 ngày trước</div>
-                            </div>
-                            <button class="btn-fix">Cập nhật</button>
-                        </div>
-
-                        <div class="security-item good">
-                            <div class="sec-icon">🔒</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Mã hóa ổ đĩa (BitLocker)</div>
-                                <div class="sec-status">Đã bật</div>
-                                <div class="sec-desc">Dữ liệu ổ đĩa được mã hóa, an toàn khi mất máy</div>
-                            </div>
-                            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-                        </div>
-
-                        <div class="security-item warn">
-                            <div class="sec-icon">🌡️</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Nhiệt độ CPU</div>
-                                <div class="sec-status" id="cpuTempSec">62°C</div>
-                                <div class="sec-desc">Nhiệt độ bình thường, nên vệ sinh quạt tản nhiệt nếu >85°C</div>
-                            </div>
-                            <span class="status-ind good">Bình thường</span>
-                        </div>
-
-                        <div class="security-item good">
-                            <div class="sec-icon">💾</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Sức khỏe ổ đĩa (SMART)</div>
-                                <div class="sec-status">Tốt (98%)</div>
-                                <div class="sec-desc">Không có sector lỗi, dự kiến còn sử dụng được 5+ năm</div>
-                            </div>
-                            <span class="status-ind good">Ổn định</span>
-                        </div>
-
-                        <div class="security-item bad">
-                            <div class="sec-icon">🚨</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Kết nối đáng ngờ</div>
-                                <div class="sec-status">Phát hiện 1 kết nối IP lạ</div>
-                                <div class="sec-desc">Phát hiện kết nối đến IP không xác định ở cổng 443</div>
-                            </div>
-                            <button class="btn-fix danger">Chặn</button>
-                        </div>
-
-                        <div class="security-item good">
-                            <div class="sec-icon">🔑</div>
-                            <div class="sec-info">
-                                <div class="sec-title">Mật khẩu tài khoản</div>
-                                <div class="sec-status">Mạnh</div>
-                                <div class="sec-desc">Mật khẩu đủ mạnh, bật xác thực 2 yếu tố</div>
-                            </div>
-                            <span class="status-ind good">An toàn</span>
-                        </div>
+                        <div class="optimize-stats" id="optimizeStats">Chưa đọc. Backend sẽ đo bộ nhớ có thể thu hồi
+                            (/proc/meminfo) và dung lượng cache thật (du) trước khi cho phép dọn.</div>
+                        <div class="optimize-actions" id="optimizeActions"></div>
                     </div>
 
                     <div class="process-section">
@@ -323,77 +246,19 @@
                                 <tr>
                                     <th>Tên tiến trình</th>
                                     <th>PID</th>
+                                    <th>User</th>
                                     <th>CPU</th>
                                     <th>RAM</th>
-                                    <th>Disk</th>
-                                    <th>Network</th>
-                                    <th>Độ tin cậy</th>
+                                    <th>Luồng</th>
+                                    <th>Độ tin cậy (kiểm tra thật)</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody id="processTableBody">
-                                <tr>
-                                    <td><strong>chrome.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Google Chrome</span></td>
-                                    <td>12458</td>
-                                    <td>12.4%</td>
-                                    <td>856 MB</td>
-                                    <td>1.2 MB/s</td>
-                                    <td>2.4 MB/s</td>
-                                    <td><span class="trust-ind good">✓ Đã ký</span></td>
-                                    <td><button class="proc-kill">Kết thúc</button></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>xkiro-manager.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Ứng dụng này</span></td>
-                                    <td>8524</td>
-                                    <td>2.1%</td>
-                                    <td>142 MB</td>
-                                    <td>0 MB/s</td>
-                                    <td>0.1 MB/s</td>
-                                    <td><span class="trust-ind good">✓ Đã ký</span></td>
-                                    <td></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>game_overlay.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Unknown Publisher</span></td>
-                                    <td>24168</td>
-                                    <td>8.7%</td>
-                                    <td>215 MB</td>
-                                    <td>0 MB/s</td>
-                                    <td>0.8 MB/s</td>
-                                    <td><span class="trust-ind warn">⚠ Không xác định</span></td>
-                                    <td><button class="proc-kill">Kết thúc</button></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>explorer.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Windows Explorer</span></td>
-                                    <td>5420</td>
-                                    <td>0.8%</td>
-                                    <td>89 MB</td>
-                                    <td>0.1 MB/s</td>
-                                    <td>0 MB/s</td>
-                                    <td><span class="trust-ind good">✓ Hệ thống</span></td>
-                                    <td></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>discord.exe</strong> <span style="color:var(--text-muted); font-size:12px;">Discord</span></td>
-                                    <td>14892</td>
-                                    <td>3.2%</td>
-                                    <td>320 MB</td>
-                                    <td>0 MB/s</td>
-                                    <td>0.3 MB/s</td>
-                                    <td><span class="trust-ind good">✓ Đã ký</span></td>
-                                    <td><button class="proc-kill">Kết thúc</button></td>
-                                </tr>
-                                <tr class="danger-row">
-                                    <td><strong>miner.exe</strong> <span style="color:var(--red); font-size:12px;">Không xác định - nghi ngờ đào coin</span></td>
-                                    <td>65412</td>
-                                    <td>42.8%</td>
-                                    <td>1.2 GB</td>
-                                    <td>0 MB/s</td>
-                                    <td>1.5 MB/s</td>
-                                    <td><span class="trust-ind bad">✗ Chưa ký</span></td>
-                                    <td><button class="proc-kill danger">Kết thúc & Xóa</button></td>
-                                </tr>
+                                <tr class="placeholder-row"><td colspan="8">Đang đọc /proc…</td></tr>
                             </tbody>
                         </table>
+                        <div class="src-line" id="processSource"></div>
                     </div>
                 </section>
             </div>

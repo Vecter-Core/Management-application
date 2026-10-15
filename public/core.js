@@ -189,9 +189,33 @@
         ping: pingBackend,
         isLive() { return backendAlive === true; },
         api,
+        /* --- số liệu máy thật (/proc, statvfs, sysfs) --- */
         system() { return api('/api/system'); },
-        market(country) { return api('/api/market?country=' + encodeURIComponent(country || 'VN')); },
-        cli(command) { return api('/api/cli', { method: 'POST', body: JSON.stringify({ command }) }); },
+        health() { return api('/api/health'); },
+        processes(limit) { return api('/api/processes?limit=' + (limit || 40)); },
+        connections(limit) { return api('/api/connections?limit=' + (limit || 80)); },
+        security() { return api('/api/security'); },
+        disks() { return api('/api/disks'); },
+        netinfo(wantPublic) { return api('/api/netinfo' + (wantPublic === false ? '?public=0' : '')); },
+        /* --- mạng thật: đo thời gian bắt tay TCP --- */
+        pingHost(host, port, count) {
+            return api('/api/ping?host=' + encodeURIComponent(host || '') + '&port=' + (port || 443) + '&count=' + (count || 4));
+        },
+        /* --- tối ưu máy thật (báo cáo + hành động whitelist) --- */
+        optimize() { return api('/api/optimize'); },
+        optimizeRun(id, confirm) {
+            return api('/api/optimize/run', { method: 'POST', body: JSON.stringify({ id: id, confirm: confirm ? '1' : '' }) });
+        },
+        kill(pid, force) { return api('/api/kill', { method: 'POST', body: JSON.stringify({ pid: pid, force: !!force }) }); },
+        /* --- thị trường: World Bank + Yahoo Finance, backend gọi hộ (tránh CORS) --- */
+        market(country, refresh) {
+            return api('/api/market?country=' + encodeURIComponent(country || 'VN') + (refresh ? '&refresh=1' : ''));
+        },
+        chart(symbol) { return api('/api/chart?symbol=' + encodeURIComponent(symbol || '')); },
+        /* --- web thật qua backend (không bị CORS chặn) --- */
+        webFetch(url) { return api('/api/web/fetch?url=' + encodeURIComponent(url || '')); },
+        webSearch(q) { return api('/api/web/search?q=' + encodeURIComponent(q || '')); },
+        cli(command, timeout) { return api('/api/cli', { method: 'POST', body: JSON.stringify({ command: command, timeout: timeout || 15 }) }); },
         keysList() { return api('/api/keys'); },
         keysSave(service, key) { return api('/api/keys', { method: 'POST', body: JSON.stringify({ service, key }) }); },
         keysDelete(service) { return api('/api/keys?service=' + encodeURIComponent(service), { method: 'DELETE' }) }

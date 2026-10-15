@@ -171,24 +171,76 @@ function closeApp() {
 }
 
 /* ==================== TOOL REGISTRY (AI gọi được) ==================== */
-const runeState = { sys: null, market: null, live: false };
+const runeState = {
+    sys: null, market: null, live: false,
+    processes: null, connections: null, security: null, disks: null,
+    optimize: null, netinfo: null, ping: null, healthScore: null, lastScan: 0
+};
 
 const RuneTools = {
     get_system_info: {
         icon: '💻', offline: true, group: 'system',
         schema: { name: 'get_system_info', description: 'Đọc thông tin hệ thống realtime: CPU, GPU, RAM, ổ đĩa, mạng, nhiệt độ, tiến trình nặng nhất', parameters: { type: 'object', properties: {}, required: [] } },
         async execute() {
-            const s = runeState.sys || {};
-            const src = runeState.live ? 'Backend C++ (số liệu thật)' : 'Mô phỏng trong trình duyệt (bật backend C++ để có số liệu thật)';
+            /* Nếu backend sống → đọc số THẬT ngay lúc được hỏi (không dùng cache cũ) */
+            if (runeState.live) {
+                let s = runeState.sys;
+                try { s = await RuneNet.system(); runeState.sys = s; } catch (e) { s = runeState.sys || null; }
+                if (s) {
+                    let topProc = null, cpuTotal = null, temps = null, disks = null;
+                    try {
+                        const pr = await RuneNet.processes(8);
+                        topProc = (pr.processes || []).slice(0, 5).map(x => ({
+                            pid: x.pid, name: x.name, user: x.user,
+                            cpu_pct: pr.first_sample ? null : Math.round(x.cpu_pct * 10) / 10,
+                            ram_mb: Math.round((x.rss || 0) / 1048576), trust: x.trust
+                        }));
+                        cpuTotal = pr.first_sample ? null : Math.round(pr.cpu_total_pct * 10) / 10;
+                    } catch (e) { }
+                    try {
+                        const dk = await RuneNet.disks();
+                        temps = (dk.temps || []).map(t => ({ zone: t.zone, celsius: Math.round(t.celsius * 10) / 10 }));
+                        disks = (dk.disks || []).map(x => ({ mount: x.mount, device: x.device, used_gb: +(x.used / 1073741824).toFixed(1), total_gb: +(x.total / 1073741824).toFixed(1), pct: Math.round(x.pct * 10) / 10 }));
+                    } catch (e) { }
+                    return {
+                        nguồn: 'Backend C++ — đo thật từ /proc, /sys, statvfs lúc ' + nowTime(),
+                        simulated: !!s.simulated,
+                        cpu: s.cpu_name || null, cpu_usage_pct: s.cpu_usage == null ? null : Math.round(s.cpu_usage * 10) / 10,
+                        cpu_toàn_máy_pct: cpuTotal,
+                        cpu_temp_c: s.cpu_temp > 0 ? Math.round(s.cpu_temp) : null, cores: s.cpu_cores || null,
+                        gpu: s.gpu_name || null, gpu_usage_pct: (s.gpu_usage > 0 || s.gpu_vram_total > 0) ? s.gpu_usage : null,
+                        gpu_temp_c: s.gpu_temp > 0 ? Math.round(s.gpu_temp) : null,
+                        gpu_vram_used_mb: s.gpu_vram_used ? Math.round(s.gpu_vram_used / 1048576) : null,
+                        ram_total_gb: s.ram_total ? +(s.ram_total / 1073741824).toFixed(2) : null,
+                        ram_used_gb: s.ram_used ? +(s.ram_used / 1073741824).toFixed(2) : null,
+                        ram_available_gb: s.ram_available ? +(s.ram_available / 1073741824).toFixed(2) : null,
+                        disk_read_mbps: s.disk_read ? +(s.disk_read / 1048576).toFixed(2) : 0,
+                        disk_write_mbps: s.disk_write ? +(s.disk_write / 1048576).toFixed(2) : 0,
+                        net_down_mbps: s.net_download ? +(s.net_download / 1048576).toFixed(2) : 0,
+                        net_up_mbps: s.net_upload ? +(s.net_upload / 1048576).toFixed(2) : 0,
+                        ổ_đĩa: disks, nhiệt_độ_cảm_biến: (temps && temps.length) ? temps : 'không đọc được cảm biến nào',
+                        tiến_trình_nặng_nhất: topProc,
+                        điểm_sức_khỏe: runeState.healthScore,
+                        trình_duyệt: navigator.userAgent.split(') ').pop()
+                    };
+                }
+            }
+            /* Không có backend → KHÔNG bịa số: chỉ trả về sự thật mà trình duyệt biết */
+            const c = navigator.connection || {};
             return {
-                nguồn: src,
-                cpu: s.cpu_name || 'CPU', cpu_usage: s.cpu_usage, cpu_temp: s.cpu_temp, cores: s.cpu_cores,
-                gpu: s.gpu_name, gpu_usage: s.gpu_usage, gpu_temp: s.gpu_temp,
-                ram_total_gb: s.ram_total ? +(s.ram_total / 1073741824).toFixed(1) : null,
-                ram_used_gb: s.ram_used ? +(s.ram_used / 1073741824).toFixed(1) : null,
-                net_down_mbps: s.net_download ? +(s.net_download / 1048576).toFixed(2) : null,
-                net_up_mbps: s.net_upload ? +(s.net_upload / 1048576).toFixed(2) : null,
-                trình_duyệt: navigator.userAgent.split(') ').pop()
+                nguồn: 'KHÔNG đo được số liệu máy — chưa kết nối backend C++ (./build.sh && ./build/rune_server)',
+                simulated: false,
+                không_đo_được: ['CPU', 'nhiệt độ', 'GPU', 'RAM', 'ổ đĩa', 'tốc độ mạng', 'tiến trình'],
+                lý_do: 'Trình duyệt không có quyền đọc /proc, /sys hay statvfs của máy.',
+                sự_thật_trình_duyệt: {
+                    số_luồng_cpu_tối_đa: navigator.hardwareConcurrency || null,
+                    ram_trình_duyệt_khai_báo_gb: navigator.deviceMemory || null,
+                    nền_tảng: navigator.platform || null,
+                    màn_hình: (screen.width + 'x' + screen.height + ' @' + (window.devicePixelRatio || 1) + 'x'),
+                    kiểu_mạng: c.effectiveType || null, downlink_mbps: c.downlink == null ? null : c.downlink, rtt_ms: c.rtt == null ? null : c.rtt,
+                    userAgent: navigator.userAgent.split(') ').pop()
+                },
+                gợi_ý: 'Chạy backend C++ rồi bấm “🔄 Kiểm tra lại” ở trang Hệ thống để có số liệu thật.'
             };
         }
     },
@@ -200,8 +252,21 @@ const RuneTools = {
         },
         async execute(a) {
             const country = (a && a.country) || 'VN';
-            const m = await fetchMarket(country);
-            const out = { country, index: m.index, value: m.value, change: m.change, changePct: m.changePct, gdp: m.gdp, inflation: m.inflation, unemployment: m.unemp, rate: m.rate, source: m.source };
+            let m;
+            try { m = await fetchMarket(country); }
+            catch (e) { return { country, simulated: true, error: e.message || String(e), note: 'Backend không trả lời được' }; }
+            const out = {
+                country, index: m.index, value: m.value, change: m.change, changePct: m.changePct,
+                gdp: m.gdp, inflation: m.inflation, unemployment: m.unemp, rate: m.rate,
+                năm_số_liệu_kinh_tế: m.econYear || null,
+                nguồn: m.source, dữ_liệu_thật: !m.simulated,
+                số_mã_có_giá_thật: m.stocksOk + '/' + m.stocksTotal,
+                điểm_biểu_đồ_thật: (m.chart || []).length
+            };
+            if (m.simulated) {
+                out.cảnh_báo = 'CHƯA có dữ liệu thật: ' + (m.note || m.source) + ' — các giá trị null nghĩa là không đo được, KHÔNG phải số 0.';
+                if ((m.stockErrors || []).length) out.mã_không_lấy_được = m.stockErrors.slice(0, 6);
+            }
             if (a && a.symbol) {
                 const st = (m.stocks || []).find(s => s.sym.toLowerCase() === String(a.symbol).toLowerCase());
                 out.symbol = st || `Không có ${a.symbol} trong danh sách (${m.source})`;
@@ -401,41 +466,135 @@ const RuneTools = {
     },
     show_health: {
         icon: '🛡️', offline: true, group: 'system',
-        schema: { name: 'show_health', description: 'Quét bảo mật & sức khỏe máy: điểm, các mục cảnh báo, tiến trình đáng ngờ', parameters: { type: 'object', properties: {}, required: [] } },
+        schema: { name: 'show_health', description: 'Quét bảo mật & sức khỏe máy THẬT (backend đọc ufw/AppArmor/apt/lsblk/smartctl//proc): điểm, các mục cảnh báo, tiến trình đáng ngờ', parameters: { type: 'object', properties: {}, required: [] } },
         async execute() {
-            const issues = [];
-            $$('.security-item').forEach(i => {
-                if (i.classList.contains('warn') || i.classList.contains('bad')) issues.push(($('.sec-title', i) || {}).textContent + ': ' + (($('.sec-status', i) || {}).textContent || ''));
-            });
-            const suspicious = $$('#processTableBody tr').filter(r => $('.trust-ind.bad', r)).map(r => $('strong', r).textContent);
-            return { score: ($('#healthScore') || {}).textContent + '/100', issues_found: issues.length, issues, suspicious_processes: suspicious };
+            if (!runeState.live) {
+                return { success: false, simulated: false, error: 'Chưa có backend C++ nên không quét được máy thật', hint: 'Chạy ./build.sh rồi ./build/rune_server' };
+            }
+            try {
+                const sec = await RuneNet.security();
+                const issues = (sec.items || []).filter(i => i.status === 'warn' || i.status === 'bad')
+                    .map(i => `${i.title}: ${i.detail}`);
+                const unknown = (sec.items || []).filter(i => i.status === 'unknown' || i.status === 'unsupported')
+                    .map(i => `${i.title}: ${i.detail}`);
+                let suspicious = [], total = 0, cpuTotal = null;
+                try {
+                    const pr = await RuneNet.processes(200);
+                    suspicious = (pr.processes || []).filter(x => x.trust === 'bad').map(x => `${x.name} (PID ${x.pid}) — ${x.trust_note}`);
+                    total = pr.count; cpuTotal = pr.first_sample ? null : Math.round(pr.cpu_total_pct * 10) / 10;
+                } catch (e) { /* không bắt buộc */ }
+                await renderSecurity();
+                let score = 100;
+                (sec.items || []).forEach(i => { score += (SEC_WEIGHT[i.status] == null ? -2 : SEC_WEIGHT[i.status]); });
+                score = Math.max(0, Math.min(100, score));
+                runeState.healthScore = score;
+                return {
+                    success: true, simulated: false, score: score, max_score: 100,
+                    good: sec.good, warn: sec.warn, bad: sec.bad, unknown: sec.unknown,
+                    issues_found: issues.length, issues: issues, not_checkable: unknown,
+                    suspicious_processes: suspicious, total_processes: total, cpu_total_pct: cpuTotal,
+                    uptime_seconds: sec.uptime, running_as_root: sec.is_root,
+                    source: 'backend C++ đọc trực tiếp từ máy (ufw/nftables, AppArmor/SELinux, apt, lsblk, smartctl, /proc/net, utmp)'
+                };
+            } catch (e) { return { success: false, error: e.message || String(e) }; }
         }
     },
     optimize_system: {
         icon: '⚡', offline: true, group: 'system',
-        schema: { name: 'optimize_system', description: 'Dọn RAM / đóng tiến trình nền (thật khi có backend C++)', parameters: { type: 'object', properties: {}, required: [] } },
-        async execute() {
-            if (runeState.live) {
-                try { const r = await RuneNet.cli("ps -eo rss,comm --sort=-rss | head -6"); return { success: true, mode: 'backend', top_memory: r.output }; } catch (e) {}
+        schema: {
+            name: 'optimize_system',
+            description: 'Đo bộ nhớ/ổ đĩa có thể thu hồi (thật) và CHẠY hành động dọn dẹp nếu được yêu cầu. Chỉ các lệnh trong whitelist: sync, drop_caches, apt_clean, journal_vacuum, user_cache, tmp_clean.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    action: { type: 'string', description: 'Bỏ trống để chỉ đo. Hoặc một trong: sync, drop_caches, apt_clean, journal_vacuum, user_cache, tmp_clean' },
+                    confirm_destructive: { type: 'boolean', description: 'Bắt buộc true với user_cache/tmp_clean (xóa file thật)' }
+                },
+                required: []
             }
-            const s = runeState.sys || {};
-            return { success: true, mode: 'mô phỏng (chưa có backend C++)', ram_used: s.ram_used, note: 'Không có tiến trình nào bị đóng ở chế độ mô phỏng' };
+        },
+        async execute(a) {
+            if (!runeState.live) {
+                return { success: false, simulated: false, error: 'Chưa có backend C++ nên không đo/dọn được máy thật', hint: 'Chạy ./build.sh rồi ./build/rune_server' };
+            }
+            try {
+                const report = await RuneNet.optimize();
+                await renderOptimize();
+                const out = {
+                    success: true, simulated: false, mode: 'backend (đo thật)',
+                    reclaimable_mb: Math.round((report.reclaimable_bytes || 0) / 1048576 * 10) / 10,
+                    memory_available_mb: Math.round(((report.meminfo || {}).available || 0) / 1048576),
+                    slab_reclaimable_mb: Math.round(((report.meminfo || {}).s_reclaimable || 0) / 1048576 * 10) / 10,
+                    caches: (report.caches || []).map(c => ({ label: c.label, path: c.path, mb: c.bytes < 0 ? null : Math.round(c.bytes / 1048576 * 10) / 10 })),
+                    top_memory: (report.top_memory || []).slice(0, 5).map(t => ({ pid: t.pid, name: t.name, mb: Math.round((t.rss || 0) / 1048576), user: t.user })),
+                    available_actions: (report.actions || []).map(x => x.id),
+                    is_root: !!report.is_root
+                };
+                const id = a && a.action;
+                if (!id) { out.note = 'Chưa chạy hành động nào (chỉ đo). Muốn dọn hãy gọi lại với action=<id>.'; return out; }
+                const act = (report.actions || []).filter(x => x.id === id)[0];
+                if (!act) return Object.assign(out, { success: false, error: 'Không có hành động "' + id + '" trong whitelist' });
+                const r = await RuneNet.optimizeRun(id, !!(a && a.confirm_destructive));
+                await renderOptimize();
+                out.executed = { action: id, command: r.command, exit_code: r.exit_code, output: (r.output || '').slice(0, 800), ok: !!r.ok, error: r.error };
+                out.success = !!r.ok;
+                logActivity('⚡', `AI chạy thật: ${r.command || id} → exit ${r.exit_code}`);
+                return out;
+            } catch (e) { return { success: false, error: e.message || String(e) }; }
         }
     },
     kill_process: {
         icon: '❌', offline: true, group: 'cli',
-        schema: { name: 'kill_process', description: 'Kết thúc tiến trình theo tên hoặc PID (chỉ khi backend C++ đang chạy)', parameters: { type: 'object', properties: { name: { type: 'string' }, pid: { type: 'number' } }, required: [] } },
+        schema: {
+            name: 'kill_process',
+            description: 'Kết thúc TIẾN TRÌNH THẬT theo PID hoặc tên (backend gửi SIGTERM, nếu không tắt thì SIGKILL). Cần backend C++ đang chạy.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', description: 'Tên tiến trình (sẽ được dò PID thật trong /proc)' },
+                    pid: { type: 'number', description: 'PID cụ thể' },
+                    force: { type: 'boolean', description: 'true = gửi SIGKILL ngay' }
+                },
+                required: []
+            }
+        },
         async execute(a) {
-            const target = a && (a.pid || a.name);
-            if (!target) return { success: false, error: 'Thiếu tên hoặc PID' };
-            const row = $$('#processTableBody tr').find(r => r.textContent.includes(String(target)));
-            if (row) { row.style.opacity = '.35'; const b = $('.proc-kill', row); if (b) { b.textContent = '✓ Đã đóng'; b.disabled = true; } }
-            if (!runeState.live) return { success: false, marked_in_ui: true, note: 'Chưa có backend C++ nên tiến trình thật chưa bị kết thúc' };
+            if (!runeState.live) {
+                return { success: false, simulated: false, error: 'Chưa có backend C++ — không thể kết thúc tiến trình thật (RUNE không giả vờ đã tắt)' };
+            }
             try {
-                const cmd = a.pid ? `kill -9 ${a.pid}` : `pkill -f ${JSON.stringify(a.name)}`;
-                const r = await RuneNet.cli(cmd);
-                return { success: true, killed: target, output: r.output };
-            } catch (e) { return { success: false, error: e.message }; }
+                let pid = a && a.pid ? Number(a.pid) : 0;
+                let matched = null;
+                const list = await RuneNet.processes(300);
+                if (!pid && a && a.name) {
+                    const q = String(a.name).toLowerCase();
+                    const hits = (list.processes || []).filter(p =>
+                        String(p.name).toLowerCase().includes(q) || String(p.cmdline || '').toLowerCase().includes(q));
+                    if (!hits.length) return { success: false, error: `Không tìm thấy tiến trình nào khớp "${a.name}" trong ${list.count} tiến trình thật` };
+                    if (hits.length > 1) {
+                        return {
+                            success: false, need_choice: true,
+                            error: `Có ${hits.length} tiến trình khớp "${a.name}" — hãy chỉ định PID`,
+                            candidates: hits.slice(0, 10).map(p => ({ pid: p.pid, name: p.name, user: p.user, rss_mb: Math.round((p.rss || 0) / 1048576), cmdline: (p.cmdline || '').slice(0, 120) }))
+                        };
+                    }
+                    matched = hits[0];
+                    pid = matched.pid;
+                }
+                if (!pid) return { success: false, error: 'Thiếu PID hoặc tên tiến trình' };
+                const proc = matched || (list.processes || []).filter(p => p.pid === pid)[0];
+                let r = await RuneNet.kill(pid, !!(a && a.force));
+                if (!r.ok && !/từ chối/i.test(r.error || '') && !(a && a.force)) r = await RuneNet.kill(pid, true);
+                setTimeout(renderProcesses, 700);
+                if (!r.ok) {
+                    return { success: false, simulated: false, pid: pid, name: proc ? proc.name : null, error: r.error || 'không kết thúc được' };
+                }
+                logActivity('❌', `AI kết thúc tiến trình thật PID ${pid} (${proc ? proc.name : '?'}) bằng ${r.signal}`);
+                return {
+                    success: true, simulated: false, killed_pid: pid,
+                    name: proc ? proc.name : (a && a.name) || null, signal: r.signal, note: r.note
+                };
+            } catch (e) { return { success: false, error: e.message || String(e) }; }
         }
     },
     get_time: {
@@ -768,163 +927,614 @@ function buildOfflineSummary(calls, body) {
     return lines.join('\n\n');
 }
 
-/* ==================== MARKET DATA ==================== */
-const marketSeed = {
-    US: { index: 'S&P 500', value: 5872, change: 45.2, changePct: 0.78, gdp: 2.8, inflation: 3.2, unemp: 4.1, rate: 5.5, stocks: [{ sym: 'AAPL', name: 'Apple', price: 226.5, chg: 2.3, chgPct: 1.03, vol: 52e6 }, { sym: 'MSFT', name: 'Microsoft', price: 430, chg: 5.8, chgPct: 1.37, vol: 28e6 }, { sym: 'NVDA', name: 'NVIDIA', price: 142, chg: -3.2, chgPct: -2.19, vol: 89e6 }, { sym: 'GOOGL', name: 'Alphabet', price: 176, chg: 1.1, chgPct: 0.63, vol: 21e6 }, { sym: 'TSLA', name: 'Tesla', price: 248, chg: -7.2, chgPct: -2.8, vol: 68e6 }] },
-    VN: { index: 'VN-Index', value: 1287.4, change: -3.8, changePct: -0.29, gdp: 5.2, inflation: 3.8, unemp: 2.3, rate: 4.5, stocks: [{ sym: 'VIC', name: 'Vingroup', price: 45.8, chg: 0.3, chgPct: 0.66, vol: 8.5e6 }, { sym: 'VHM', name: 'Vinhomes', price: 43.1, chg: -0.2, chgPct: -0.46, vol: 6.2e6 }, { sym: 'VCB', name: 'Vietcombank', price: 90.5, chg: 0.8, chgPct: 0.89, vol: 4.1e6 }, { sym: 'VNM', name: 'Vinamilk', price: 71.2, chg: 0, chgPct: 0, vol: 2.8e6 }, { sym: 'BID', name: 'BIDV', price: 49, chg: 0.5, chgPct: 1.03, vol: 3.5e6 }, { sym: 'FPT', name: 'FPT Corp', price: 116.8, chg: 1.5, chgPct: 1.3, vol: 3.9e6 }, { sym: 'GAS', name: 'PV Gas', price: 82.5, chg: -0.6, chgPct: -0.72, vol: 2.1e6 }, { sym: 'MWG', name: 'TG Di động', price: 39.2, chg: 0.7, chgPct: 1.82, vol: 7.8e6 }, { sym: 'SSI', name: 'SSI Sec', price: 28.9, chg: 0.4, chgPct: 1.4, vol: 9.2e6 }] },
-    JP: { index: 'Nikkei 225', value: 39680, change: 320, changePct: 0.81, gdp: 1.2, inflation: 2.8, unemp: 2.5, rate: 0.25, stocks: [{ sym: '7203.T', name: 'Toyota', price: 2650, chg: 15, chgPct: 0.57, vol: 9e6 }, { sym: '6758.T', name: 'Sony', price: 2980, chg: -20, chgPct: -0.67, vol: 6e6 }, { sym: '9984.T', name: 'SoftBank', price: 8420, chg: 120, chgPct: 1.45, vol: 12e6 }] },
-    CN: { index: 'SSE Composite', value: 3292, change: 12, changePct: 0.38, gdp: 4.8, inflation: 0.7, unemp: 5.1, rate: 3.45, stocks: [{ sym: '600519.SS', name: 'Kweichow Moutai', price: 1520, chg: 8, chgPct: 0.53, vol: 3e6 }, { sym: '601318.SS', name: 'Ping An', price: 52.4, chg: -0.3, chgPct: -0.57, vol: 22e6 }] },
-    EU: { index: 'Euro Stoxx 50', value: 4835, change: -8, changePct: -0.18, gdp: 0.8, inflation: 2.4, unemp: 6.4, rate: 4.5, stocks: [{ sym: 'SAP.DE', name: 'SAP', price: 218, chg: 2.4, chgPct: 1.11, vol: 2e6 }, { sym: 'ASML.AS', name: 'ASML', price: 720, chg: -6, chgPct: -0.83, vol: 1.5e6 }] }
-};
-const marketCache = {};
-
-async function fetchMarket(country) {
-    const c = country || $('#countrySelect').value || 'VN';
-    // 1) backend C++ (số thật từ máy local)
-    if (runeState.live) {
-        try {
-            const j = await RuneNet.market(c);
-            const ind = j.indicator || {};
-            return {
-                index: ind.index_name, value: ind.index_value, change: ind.index_change, changePct: ind.index_change_pct,
-                gdp: ind.gdp_growth, inflation: ind.inflation, unemp: ind.unemployment, rate: ind.interest_rate,
-                stocks: (j.stocks || []).map(s => ({ sym: s.symbol, name: s.name, price: s.price, chg: s.change, chgPct: s.change_pct, vol: s.volume })),
-                source: 'Backend C++ (local)'
-            };
-        } catch (e) { /* rơi xuống dưới */ }
-    }
-    // 2) Alpha Vantage nếu người dùng có khóa (dữ liệu thật)
-    const av = RuneKeys.other('alpha');
-    if (av) {
-        const ck = marketCache['av_' + c];
-        if (ck && Date.now() - ck.t < 60000) return ck.d;
-        try {
-            const sym = { VN: 'VNINDEX', US: 'SPY', JP: 'EWJ', CN: 'FXI', EU: 'EZU' }[c] || 'SPY';
-            const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym}&apikey=${encodeURIComponent(av)}`);
-            const j = await r.json();
-            const q = j['Global Quote'];
-            if (q && q['05. price']) {
-                const price = parseFloat(q['05. price']);
-                const chg = parseFloat(q['09. change']);
-                const d = {
-                    index: q['01. symbol'], value: price, change: chg, changePct: parseFloat(String(q['10. change percent']).replace('%', '')),
-                    gdp: marketSeed[c].gdp, inflation: marketSeed[c].inflation, unemp: marketSeed[c].unemp, rate: marketSeed[c].rate,
-                    stocks: [{ sym: q['01. symbol'], name: q['01. symbol'], price, chg, chgPct: parseFloat(String(q['10. change percent']).replace('%', '')), vol: parseFloat(q['06. volume']) }],
-                    source: 'Alpha Vantage (dữ liệu thật)'
-                };
-                marketCache['av_' + c] = { t: Date.now(), d };
-                return d;
-            }
-        } catch (e) {}
-    }
-    // 3) dữ liệu mẫu
-    const s = marketSeed[c] || marketSeed.VN;
-    const jitter = v => +(v + (Math.random() - 0.5) * Math.abs(v) * 0.004).toFixed(2);
-    return Object.assign({}, s, { value: jitter(s.value), source: RuneKeys.other('alpha') ? 'Mẫu (khóa Alpha Vantage lỗi)' : 'Dữ liệu mẫu — thêm khóa Alpha Vantage ở trang 🔑 Khóa để có giá thật' });
-}
-
+/* ==================== MARKET DATA — DỮ LIỆU THẬT (World Bank + Yahoo Finance) ====================
+   Không còn số mẫu/số ngẫu nhiên: backend C++ gọi thẳng World Bank (GDP, lạm phát, thất nghiệp,
+   lãi suất) và Yahoo Finance (chỉ số, giá cổ phiếu, chuỗi 30 ngày). Nếu không gọi được thì
+   hiển thị "—" kèm lý do thật, tuyệt đối không bịa số.                                          */
 let marketChart = null, netChart = null;
-const netDown = [], netUp = [];
-for (let i = 0; i < 60; i++) { netDown.push(Math.random() * 3); netUp.push(Math.random() * 0.8); }
+const NET_POINTS = 60;
+const netDown = new Array(NET_POINTS).fill(null);   // null = chưa đo (không điền số ngẫu nhiên)
+const netUp = new Array(NET_POINTS).fill(null);
 
-async function renderMarketData(country) {
-    const d = await fetchMarket(country);
-    runeState.market = d;
-    $('#idxName').textContent = d.index;
-    $('#idxValue').textContent = Number(d.value).toLocaleString('en-US', { minimumFractionDigits: 2 });
-    const ce = $('#idxChange');
-    const s = d.change >= 0 ? '+' : '';
-    ce.textContent = `${s}${Number(d.change).toFixed(2)} (${s}${Number(d.changePct).toFixed(2)}%)`;
-    ce.className = 'stat-change ' + (d.change >= 0 ? 'positive' : 'negative');
-    $('#gdpVal').textContent = d.gdp + '%';
-    $('#inflationVal').textContent = d.inflation + '%';
-    $('#unempVal').textContent = d.unemp + '%';
-    $('#rateVal').textContent = d.rate + '%';
-    const tbody = $('#stockTableBody');
-    tbody.innerHTML = '';
-    (d.stocks || []).forEach(st => {
-        const tr = document.createElement('tr');
-        const cls = st.chg >= 0 ? 'stock-positive' : 'stock-negative';
-        const ss = st.chg >= 0 ? '+' : '';
-        tr.innerHTML = `<td><strong>${RuneUI.esc(st.sym)}</strong></td><td>${RuneUI.esc(st.name)}</td><td>${Number(st.price).toFixed(2)}</td><td class="${cls}">${ss}${Number(st.chg).toFixed(2)}</td><td class="${cls}">${ss}${Number(st.chgPct).toFixed(2)}%</td><td>${formatVolume(st.vol)}</td>`;
-        tbody.appendChild(tr);
-    });
-    if (!d.stocks || !d.stocks.length) tbody.innerHTML = '<tr><td colspan="6" style="opacity:.6">Không có mã nào cho khu vực này</td></tr>';
-    const src = $('#marketSource');
-    if (src) src.textContent = '📡 ' + d.source;
-
-    const ctx = $('#marketChart');
-    if (ctx && window.Chart) {
-        const labels = [], data = [];
-        let base = d.value * 0.96;
-        for (let i = 29; i >= 0; i--) { const dt = new Date(); dt.setDate(dt.getDate() - i); labels.push(dt.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })); base += (Math.random() - 0.48) * d.value * 0.01; data.push(base); }
-        data[data.length - 1] = d.value;
-        if (marketChart) marketChart.destroy();
-        marketChart = new Chart(ctx.getContext('2d'), {
-            type: 'line',
-            data: { labels, datasets: [{ label: d.index, data, borderColor: d.changePct >= 0 ? '#10b981' : '#ef4444', backgroundColor: d.changePct >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#646b8b' } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#646b8b' } } } }
-        });
-    }
+function fmtNum(v, digits) {
+    return (v === null || v === undefined || v === '' || isNaN(v)) ? '—' : Number(v).toFixed(digits == null ? 2 : digits);
 }
-
-/* ==================== SYSTEM MONITOR ==================== */
-function simSystem() {
-    const cpu = 10 + Math.random() * 35, gpu = 5 + Math.random() * 50;
+function setTxt(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; return el; }
+function setSrc(id, text) { const el = document.getElementById(id); if (el) el.textContent = text || ''; }
+function marketBanner() {
+    let el = document.getElementById('marketBanner');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'marketBanner';
+        el.className = 'sim-banner';
+        const grid = $('.indicator-grid');
+        if (grid && grid.parentNode) grid.parentNode.insertBefore(el, grid);
+    }
+    return el;
+}
+function emptyMarket(country, source, note) {
     return {
-        cpu_name: navigator.hardwareConcurrency ? (navigator.hardwareConcurrency + ' nhân (trình duyệt)') : 'Không rõ',
-        cpu_usage: cpu, cpu_temp: Math.floor(48 + Math.random() * 20), cpu_cores: navigator.hardwareConcurrency || 0,
-        gpu_name: 'GPU (không đọc được từ trình duyệt)', gpu_usage: gpu, gpu_temp: Math.floor(42 + Math.random() * 25),
-        ram_total: 16 * 1024 * 1024 * 1024, ram_used: Math.floor(5 + Math.random() * 4) * 1024 * 1024 * 1024,
-        ram_available: 0, disk_read: Math.random() * 50 * 1048576, disk_write: Math.random() * 20 * 1048576,
-        net_download: Math.random() * 8 * 1048576, net_upload: Math.random() * 1.5 * 1048576, simulated: true
+        country: country, index: '—', value: null, change: null, changePct: null,
+        gdp: null, inflation: null, unemp: null, rate: null, econYear: '',
+        stocks: [], chart: [], stockErrors: [], source: source, note: note,
+        simulated: true, realIndex: false, realEcon: false, realStocks: false,
+        stocksOk: 0, stocksTotal: 0, fetchedAt: 0
     };
 }
 
-async function updateSystem() {
-    let info = null;
-    if (runeState.live) { try { info = await RuneNet.system(); } catch (e) { runeState.live = false; } }
-    if (!info) info = simSystem();
-    info.ram_available = info.ram_available || Math.max(0, (info.ram_total || 0) - (info.ram_used || 0));
-    runeState.sys = info;
+async function fetchMarket(country, refresh) {
+    const c = country || (($('#countrySelect') || {}).value) || 'VN';
+    if (!runeState.live) {
+        return emptyMarket(c, 'Chưa kết nối backend C++',
+            'Trình duyệt không gọi thẳng được Yahoo Finance / World Bank (bị chặn CORS). ' +
+            'Chạy ./build.sh rồi ./build/rune_server để lấy giá thật.');
+    }
+    const j = await RuneNet.market(c, refresh);
+    const ind = j.indicator || {};
+    const d = emptyMarket(c, j.source || '', j.note || '');
+    d.index = ind.index_name || '—';
+    d.value = j.real_index ? ind.index_value : null;
+    d.change = j.real_index ? ind.index_change : null;
+    d.changePct = j.real_index ? ind.index_change_pct : null;
+    d.gdp = j.real_econ ? ind.gdp_growth : null;
+    d.inflation = j.real_econ ? ind.inflation : null;
+    d.unemp = j.real_econ ? ind.unemployment : null;
+    d.rate = j.real_econ ? ind.interest_rate : null;
+    d.econYear = j.econ_year || '';
+    d.stocks = (j.stocks || []).map(s => ({
+        sym: s.symbol, name: s.name, price: s.price, chg: s.change, chgPct: s.change_pct, vol: s.volume
+    }));
+    d.chart = (j.chart || []).map(p => ({ t: p.t, v: p.v }));
+    d.stockErrors = j.stock_errors || [];
+    d.simulated = !!j.simulated;
+    d.realIndex = !!j.real_index; d.realEcon = !!j.real_econ; d.realStocks = !!j.real_stocks;
+    d.stocksOk = j.stocks_ok || 0; d.stocksTotal = j.stocks_total || 0;
+    d.fetchedAt = j.fetched_at || 0;
+    d.currency = j.currency || '';
+    return d;
+}
 
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    const bar = (id, v) => { const el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, v)) + '%'; };
+async function renderMarketData(country, refresh) {
+    let d;
+    try {
+        d = await fetchMarket(country, refresh);
+    } catch (e) {
+        d = emptyMarket(country || 'VN', 'Backend trả về lỗi', e && e.message ? e.message : String(e));
+    }
+    runeState.market = d;
 
-    set('cpuUsage', Number(info.cpu_usage || 0).toFixed(1) + '%'); bar('cpuBar', info.cpu_usage || 0);
-    set('cpuTemp', Math.round(info.cpu_temp || 0) + '°C'); set('cpuTempSec', Math.round(info.cpu_temp || 0) + '°C');
-    set('cpuName', info.cpu_name || 'CPU');
-    set('gpuUsage', Number(info.gpu_usage || 0).toFixed(1) + '%'); bar('gpuBar', info.gpu_usage || 0);
-    set('gpuTemp', Math.round(info.gpu_temp || 0) + '°C'); set('gpuName', info.gpu_name || 'GPU');
-    bar('ramBar', info.ram_total ? (info.ram_used / info.ram_total * 100) : 0);
-    set('ramUsed', formatBytes(info.ram_used || 0)); set('ramAvail', formatBytes(info.ram_available || 0));
-    bar('diskBar', info.disk_total ? (info.disk_used / info.disk_total * 100) : 42);
-    set('diskUsed', (info.disk_total ? formatBytes(info.disk_used) + ' / ' + formatBytes(info.disk_total) : formatBytes((info.disk_read || 0) * 40)));
-    set('diskIO', formatSpeed((info.disk_read || 0) + (info.disk_write || 0)));
-    set('netDown', formatSpeed(info.net_download || 0)); set('netUp', formatSpeed(info.net_upload || 0));
-    set('netDownLarge', formatSpeed(info.net_download || 0)); set('netUpLarge', formatSpeed(info.net_upload || 0));
-    // ping: backend C++ không đo giá trị này → không bịa số, hiện dấu — cho rõ
-    set('pingVal', info.ping != null ? Math.round(info.ping) + ' ms' : (info.simulated ? Math.floor(8 + Math.random() * 25) + ' ms' : '—'));
+    setTxt('idxName', d.index + (d.econYear ? '' : ''));
+    setTxt('idxValue', d.value == null ? '—' : Number(d.value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (d.currency ? ' ' + d.currency : ''));
+    const ce = $('#idxChange');
+    if (ce) {
+        if (d.change == null) { ce.textContent = 'chưa có dữ liệu thật'; ce.className = 'stat-change'; }
+        else {
+            const s = d.change >= 0 ? '+' : '';
+            ce.textContent = `${s}${fmtNum(d.change)} (${s}${fmtNum(d.changePct)}%)`;
+            ce.className = 'stat-change ' + (d.change >= 0 ? 'positive' : 'negative');
+        }
+    }
+    setTxt('gdpVal', d.gdp == null ? '—' : fmtNum(d.gdp) + '%');
+    setTxt('inflationVal', d.inflation == null ? '—' : fmtNum(d.inflation) + '%');
+    setTxt('unempVal', d.unemp == null ? '—' : fmtNum(d.unemp) + '%');
+    setTxt('rateVal', d.rate == null ? '—' : fmtNum(d.rate) + '%');
 
-    const score = info.simulated ? 85 + Math.floor(Math.random() * 6) : Math.max(20, 100 - Math.round((info.cpu_usage || 0) / 3) - Math.max(0, (info.cpu_temp || 50) - 70));
-    set('healthScore', score);
-    const sc = $('#scoreCircle'); if (sc) sc.style.setProperty('--score', score);
-    const badge = $('#dataSourceBadge');
-    if (badge) { badge.textContent = runeState.live ? '● Backend C++: dữ liệu thật' : '○ Chế độ trình duyệt: dữ liệu mô phỏng'; badge.className = 'src-badge ' + (runeState.live ? 'live' : 'sim'); }
-
-    netDown.shift(); netDown.push((info.net_download || 0) / 1048576);
-    netUp.shift(); netUp.push((info.net_upload || 0) / 1048576);
-    const nctx = $('#networkChart');
-    if (nctx && window.Chart) {
-        if (netChart) { netChart.data.datasets[0].data = netDown.slice(); netChart.data.datasets[1].data = netUp.slice(); netChart.update('none'); }
-        else netChart = new Chart(nctx.getContext('2d'), {
-            type: 'line',
-            data: { labels: netDown.map((_, i) => i), datasets: [{ label: 'Down', data: netDown.slice(), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 }, { label: 'Up', data: netUp.slice(), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } }, animation: false }
+    const tbody = $('#stockTableBody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        (d.stocks || []).forEach(st => {
+            const tr = document.createElement('tr');
+            const cls = (st.chg || 0) >= 0 ? 'stock-positive' : 'stock-negative';
+            const ss = (st.chg || 0) >= 0 ? '+' : '';
+            tr.innerHTML = `<td><strong>${RuneUI.esc(st.sym)}</strong></td>` +
+                `<td>${RuneUI.esc(st.name)}</td>` +
+                `<td>${fmtNum(st.price)}</td>` +
+                `<td class="${cls}">${st.chg == null ? '—' : ss + fmtNum(st.chg)}</td>` +
+                `<td class="${cls}">${st.chgPct == null ? '—' : ss + fmtNum(st.chgPct) + '%'}</td>` +
+                `<td>${st.vol ? formatVolume(st.vol) : '—'}</td>`;
+            tbody.appendChild(tr);
         });
+        if (!(d.stocks || []).length) {
+            tbody.innerHTML = `<tr><td colspan="6" style="opacity:.65">Không lấy được giá cổ phiếu nào` +
+                (d.stockErrors && d.stockErrors.length ? ` (${RuneUI.esc(d.stockErrors[0])})` : '') + `</td></tr>`;
+        } else if (d.stockErrors && d.stockErrors.length) {
+            tbody.innerHTML += `<tr><td colspan="6" style="opacity:.65;font-size:11.5px">` +
+                `${d.stocksOk}/${d.stocksTotal} mã có giá thật · không lấy được: ${RuneUI.esc(d.stockErrors.join('; '))}</td></tr>`;
+        }
+    }
+
+    setSrc('marketSource', (d.source ? '📡 ' + d.source : '') +
+        (d.fetchedAt ? ' · lấy lúc ' + new Date(d.fetchedAt * 1000).toLocaleTimeString('vi-VN') : ''));
+
+    const ban = marketBanner();
+    if (ban) {
+        if (!d.simulated) {
+            ban.className = 'sim-banner ok';
+            ban.textContent = `✅ Số liệu thật: ${d.source || 'World Bank + Yahoo Finance'}` +
+                (d.note ? ' · ' + d.note : '');
+        } else {
+            ban.className = 'sim-banner';
+            ban.textContent = `⚠️ Chưa có số liệu thật — ${d.note || d.source || 'không gọi được API'}` +
+                ' (RUNE không hiển thị giá giả; các ô “—” nghĩa là chưa đo được)';
+        }
+    }
+
+    /* biểu đồ: chỉ vẽ chuỗi giá THẬT trả về từ backend */
+    const ctx = $('#marketChart');
+    if (ctx && window.Chart) {
+        const pts = d.chart || [];
+        if (marketChart) { marketChart.destroy(); marketChart = null; }
+        if (pts.length >= 2) {
+            const labels = pts.map(p => new Date(p.t * 1000).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
+            const data = pts.map(p => p.v);
+            marketChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: d.index, data: data,
+                        borderColor: (d.changePct || 0) >= 0 ? '#10b981' : '#ef4444',
+                        backgroundColor: (d.changePct || 0) >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                        fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, spanGaps: false
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#646b8b', maxTicksLimit: 8 } },
+                        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#646b8b' } }
+                    }
+                }
+            });
+        } else {
+            const g = ctx.getContext('2d');
+            if (g && g.clearRect) {
+                g.clearRect(0, 0, ctx.width || 600, ctx.height || 200);
+                if (g.fillText) {
+                    g.fillStyle = '#646b8b'; g.font = '12px sans-serif';
+                    g.fillText('Chưa có chuỗi giá thật để vẽ (backend không gọi được Yahoo Finance).', 12, 24);
+                }
+            }
+        }
     }
 }
 
+/* ==================== SYSTEM MONITOR — số liệu THẬT từ /proc, statvfs, sysfs ==================== */
+async function updateSystem() {
+    let info = null;
+    if (runeState.live) {
+        try { info = await RuneNet.system(); }
+        catch (e) { runeState.live = false; info = null; }
+    }
+    runeState.sys = info;
+
+    const bar = (id, v) => { const el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, v || 0)) + '%'; };
+
+    /* --- chế độ chỉ có trình duyệt: KHÔNG bịa số, hiện "—" và nói rõ vì sao --- */
+    if (!info) {
+        ['cpuUsage', 'cpuTemp', 'cpuTempSec', 'gpuUsage', 'gpuTemp', 'ramUsed', 'ramAvail',
+            'diskUsed', 'diskIO', 'netDown', 'netUp', 'netDownLarge', 'netUpLarge'].forEach(id => setTxt(id, '—'));
+        ['cpuBar', 'gpuBar', 'ramBar', 'diskBar'].forEach(id => bar(id, 0));
+        setTxt('cpuName', 'Không đọc được từ trình duyệt');
+        setTxt('gpuName', 'Không đọc được từ trình duyệt');
+        setTxt('diskName', '—');
+        const badge = $('#dataSourceBadge');
+        if (badge) {
+            badge.textContent = '○ Chưa có backend C++ — mọi ô “—” là thật sự không đo được';
+            badge.className = 'src-badge sim';
+        }
+        netDown.shift(); netDown.push(null); netUp.shift(); netUp.push(null);
+        drawNetChart();
+        return;
+    }
+
+    const info2 = info;
+    info2.ram_available = info2.ram_available || Math.max(0, (info2.ram_total || 0) - (info2.ram_used || 0));
+
+    setTxt('cpuUsage', fmtNum(info2.cpu_usage, 1) + '%'); bar('cpuBar', info2.cpu_usage);
+    setTxt('cpuTemp', info2.cpu_temp > 0 ? Math.round(info2.cpu_temp) + '°C' : '—');
+    setTxt('cpuTempSec', info2.cpu_temp > 0 ? Math.round(info2.cpu_temp) + '°C' : 'không đọc được cảm biến');
+    setTxt('cpuName', info2.cpu_name || '—');
+
+    const gpuReal = (info2.gpu_usage > 0) || (info2.gpu_vram_total > 0);
+    setTxt('gpuUsage', gpuReal ? fmtNum(info2.gpu_usage, 1) + '%' : '—');
+    bar('gpuBar', gpuReal ? info2.gpu_usage : 0);
+    setTxt('gpuTemp', info2.gpu_temp > 0 ? Math.round(info2.gpu_temp) + '°C' : '—');
+    setTxt('gpuName', info2.gpu_name || '—');
+
+    bar('ramBar', info2.ram_total ? (info2.ram_used / info2.ram_total * 100) : 0);
+    setTxt('ramUsed', info2.ram_total ? formatBytes(info2.ram_used || 0) + ' / ' + formatBytes(info2.ram_total) : '—');
+    setTxt('ramAvail', info2.ram_available ? 'còn ' + formatBytes(info2.ram_available) : '—');
+
+    bar('diskBar', info2.disk_total ? (info2.disk_used / info2.disk_total * 100) : 0);
+    setTxt('diskUsed', info2.disk_total ? formatBytes(info2.disk_used) + ' / ' + formatBytes(info2.disk_total) : '—');
+    setTxt('diskIO', (info2.disk_read || info2.disk_write) ? 'R ' + formatSpeed(info2.disk_read || 0) + ' · W ' + formatSpeed(info2.disk_write || 0) : '0 KB/s');
+    const dn = $('#diskName'); if (dn) dn.title = 'đọc/ghi thật từ /proc/diskstats';
+
+    setTxt('netDown', formatSpeed(info2.net_download || 0)); setTxt('netUp', formatSpeed(info2.net_upload || 0));
+    setTxt('netDownLarge', formatSpeed(info2.net_download || 0)); setTxt('netUpLarge', formatSpeed(info2.net_upload || 0));
+
+    const badge = $('#dataSourceBadge');
+    if (badge) {
+        badge.textContent = info2.simulated ? '○ Backend trả dữ liệu mô phỏng' : '● Backend C++: số liệu thật từ máy';
+        badge.className = 'src-badge ' + (info2.simulated ? 'sim' : 'live');
+    }
+
+    netDown.shift(); netDown.push((info2.net_download || 0) / 1048576);
+    netUp.shift(); netUp.push((info2.net_upload || 0) / 1048576);
+    drawNetChart();
+}
+
+function drawNetChart() {
+    const nctx = $('#networkChart');
+    if (!nctx || !window.Chart) return;
+    if (netChart) {
+        netChart.data.datasets[0].data = netDown.slice();
+        netChart.data.datasets[1].data = netUp.slice();
+        netChart.update('none');
+        return;
+    }
+    netChart = new Chart(nctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: netDown.map((_, i) => i),
+            datasets: [
+                { label: 'Down (MB/s)', data: netDown.slice(), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5, spanGaps: false },
+                { label: 'Up (MB/s)', data: netUp.slice(), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5, spanGaps: false }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } }, animation: false }
+    });
+}
+
+/* ==================== TIẾN TRÌNH / KẾT NỐI / BẢO MẬT / TỐI ƯU — TẤT CẢ THẬT ==================== */
+const NEED_BACKEND = 'Cần backend C++ (./build/rune_server) — trình duyệt không đọc được /proc của máy.';
+const TRUST_LABEL = { good: '✓ Tin cậy', warn: '⚠ Cần xem', bad: '✗ Đáng ngờ', kernel: '✓ Kernel', unknown: '? Không rõ' };
+const TRUST_CLASS = { good: 'good', warn: 'warn', bad: 'bad', kernel: 'good', unknown: 'warn' };
+const SEC_LABEL = { good: 'An toàn', warn: 'Cần chú ý', bad: 'Rủi ro', unknown: 'Không xác định', unsupported: 'Không kiểm tra được' };
+const SEC_WEIGHT = { good: 0, warn: -7, bad: -18, unknown: -2, unsupported: -3 };
+
+function placeholderRow(cols, text) {
+    return `<tr class="placeholder-row"><td colspan="${cols}">${RuneUI.esc(text)}</td></tr>`;
+}
+
+async function renderProcesses() {
+    const tbody = $('#processTableBody');
+    if (!tbody) return null;
+    if (!runeState.live) {
+        tbody.innerHTML = placeholderRow(8, NEED_BACKEND);
+        setSrc('processSource', '');
+        return null;
+    }
+    let d;
+    try { d = await RuneNet.processes(40); }
+    catch (e) { tbody.innerHTML = placeholderRow(8, 'Không đọc được tiến trình: ' + (e.message || e)); return null; }
+    runeState.processes = d.processes || [];
+    tbody.innerHTML = '';
+    (d.processes || []).forEach(p => {
+        const tr = document.createElement('tr');
+        if (p.trust === 'bad') tr.className = 'danger-row';
+        const cmd = (p.cmdline || p.exe || '').slice(0, 70);
+        tr.innerHTML =
+            `<td><strong>${RuneUI.esc(p.name)}</strong>` +
+            (cmd ? ` <span style="color:var(--text-muted);font-size:11px">${RuneUI.esc(cmd)}</span>` : '') + `</td>` +
+            `<td>${p.pid}</td>` +
+            `<td>${RuneUI.esc(p.user || '—')}</td>` +
+            `<td>${d.first_sample ? 'đang lấy mẫu…' : fmtNum(p.cpu_pct, 1) + '%'}</td>` +
+            `<td>${formatBytes(p.rss || 0)}</td>` +
+            `<td>${p.threads || '—'}</td>` +
+            `<td><span class="trust-ind ${TRUST_CLASS[p.trust] || 'warn'}" title="${RuneUI.esc(p.trust_note || '')}">${TRUST_LABEL[p.trust] || p.trust}</span></td>` +
+            `<td>${p.pid > 1 ? `<button class="proc-kill" data-pid="${p.pid}" data-name="${RuneUI.esc(p.name)}">Kết thúc</button>` : ''}</td>`;
+        tbody.appendChild(tr);
+    });
+    if (!(d.processes || []).length) tbody.innerHTML = placeholderRow(8, 'Không đọc được tiến trình nào (thiếu quyền?).');
+    $$('#processTableBody .proc-kill').forEach(b => {
+        b.addEventListener('click', () => killProcess(parseInt(b.dataset.pid, 10), b.dataset.name, b));
+    });
+    setSrc('processSource',
+        `${d.count} tiến trình thật từ /proc · CPU toàn máy: ${d.first_sample ? 'đang lấy mẫu đầu tiên' : fmtNum(d.cpu_total_pct, 1) + '%'}` +
+        ` · cập nhật ${nowTime()}`);
+    return d;
+}
+
+async function killProcess(pid, name, btn) {
+    if (!pid) return;
+    const ok = await RuneUI.confirm({
+        title: 'Kết thúc tiến trình thật?',
+        message: `Gửi SIGTERM tới PID ${pid} (${name || 'không rõ tên'}). Nếu tiến trình không tắt, RUNE sẽ gửi tiếp SIGKILL.\nĐây là thao tác thật trên máy bạn.`,
+        ok: 'Kết thúc'
+    });
+    if (!ok) return;
+    const old = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+        let r = await RuneNet.kill(pid, false);
+        if (!r.ok && !/từ chối/i.test(r.error || '')) r = await RuneNet.kill(pid, true);
+        if (r.ok) {
+            toast(`✓ Đã kết thúc PID ${pid} bằng ${r.signal}`, 'ok');
+            logActivity('❌', `Kết thúc tiến trình thật PID ${pid} (${name || '?'}) bằng ${r.signal}`);
+        } else {
+            toast('Không kết thúc được: ' + (r.error || 'lỗi không rõ'), 'error');
+            if (btn) { btn.disabled = false; btn.textContent = old; }
+            return;
+        }
+    } catch (e) {
+        toast('Lỗi khi gọi backend: ' + (e.message || e), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = old; }
+        return;
+    }
+    setTimeout(renderProcesses, 700);
+}
+
+async function renderConnections() {
+    const list = $('#connectionList');
+    if (!list) return null;
+    if (!runeState.live) {
+        list.innerHTML = `<div class="conn-empty">${RuneUI.esc(NEED_BACKEND)}</div>`;
+        setTxt('openPorts', '—');
+        setSrc('connSource', '');
+        return null;
+    }
+    let d;
+    try { d = await RuneNet.connections(80); }
+    catch (e) { list.innerHTML = `<div class="conn-empty">Không đọc được kết nối: ${RuneUI.esc(e.message || String(e))}</div>`; return null; }
+    runeState.connections = d.connections || [];
+    list.innerHTML = '';
+    (d.connections || []).slice(0, 40).forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'conn-item';
+        const cls = c.listening ? 'warn' : (c.loopback ? 'good' : 'good');
+        const who = c.process ? ` · ${c.process}${c.pid ? ' (' + c.pid + ')' : ''}` : (c.pid ? ' · PID ' + c.pid : ' · không rõ tiến trình');
+        div.innerHTML = `<span class="conn-proto">${RuneUI.esc((c.proto || 'tcp').toUpperCase())}</span>` +
+            `<span class="conn-ip">${RuneUI.esc(c.local || '—')} → ${RuneUI.esc(c.remote || '—')}${RuneUI.esc(who)}</span>` +
+            `<span class="conn-status ${cls}">${RuneUI.esc(c.state || (c.listening ? 'LISTEN' : '—'))}</span>`;
+        list.appendChild(div);
+    });
+    if (!(d.connections || []).length) list.innerHTML = '<div class="conn-empty">Không có kết nối nào đọc được từ /proc/net.</div>';
+    setTxt('openPorts', `${d.exposed} cổng ra ngoài / ${d.listening} đang lắng nghe`);
+    const op = $('#openPorts'); if (op) op.className = 'net-value ' + (d.exposed > 0 ? 'status-warn' : 'status-good');
+    setSrc('connSource', `${d.total} kết nối thật từ /proc/net/tcp·udp · ${d.exposed} cổng mở ra ngoài máy · cập nhật ${nowTime()}`);
+    return d;
+}
+
+async function renderDisks() {
+    if (!runeState.live) return null;
+    let d;
+    try { d = await RuneNet.disks(); } catch (e) { return null; }
+    runeState.disks = d;
+    /* nhiệt độ thật (nếu máy có cảm biến đọc được) */
+    const grid = $('#securityGrid');
+    if (grid) {
+        let card = document.getElementById('secTemps');
+        if (!card) {
+            card = document.createElement('div');
+            card.id = 'secTemps';
+            grid.appendChild(card);
+        }
+        const temps = d.temps || [];
+        const has = temps.length > 0;
+        card.className = 'security-item ' + (has ? (Math.max.apply(null, temps.map(t => t.celsius)) > 80 ? 'warn' : 'good') : 'unknown');
+        card.innerHTML = `<div class="sec-icon">🌡️</div><div class="sec-info">` +
+            `<div class="sec-title">Nhiệt độ cảm biến (sysfs)</div>` +
+            `<div class="sec-status">${has ? temps.map(t => `${RuneUI.esc(t.zone)}: ${fmtNum(t.celsius, 1)}°C`).join(' · ') : 'Không đọc được cảm biến nào'}</div>` +
+            `<div class="sec-desc">${has ? 'Đọc trực tiếp từ /sys/class/thermal và /sys/class/hwmon.' : 'Máy không exposes cảm biến cho user thường (hoặc là VM/container) — RUNE không bịa nhiệt độ.'}</div>` +
+            `<div class="sec-source">nguồn: /sys/class/thermal · /sys/class/hwmon</div></div>` +
+            `<span class="status-ind ${has ? 'good' : 'unknown'}">${has ? 'Đo được' : 'Không đo được'}</span>`;
+    }
+    /* danh sách ổ đĩa thật */
+    const disks = d.disks || [];
+    const dn = $('#diskName');
+    if (dn && disks.length) {
+        dn.textContent = disks[0].device + ' → ' + disks[0].mount;
+        dn.title = disks.map(x => `${x.mount} (${x.device}, ${x.fstype}): ${formatBytes(x.used)}/${formatBytes(x.total)} — ${fmtNum(x.pct, 1)}%`).join('\n');
+    }
+    let line = document.getElementById('diskSource');
+    if (!line) {
+        const sec = $('.system-grid');
+        if (sec && sec.parentNode) {
+            line = document.createElement('div');
+            line.id = 'diskSource';
+            line.className = 'src-line';
+            sec.parentNode.insertBefore(line, sec.nextSibling);
+        }
+    }
+    setSrc('diskSource', disks.length
+        ? '💾 ' + disks.map(x => `${x.mount}: ${formatBytes(x.used)}/${formatBytes(x.total)} (${fmtNum(x.pct, 1)}%, ${x.fstype})`).join(' · ') + ' — statvfs thật'
+        : '');
+    return d;
+}
+
+async function renderSecurity() {
+    const grid = $('#securityGrid');
+    if (!grid) return null;
+    if (!runeState.live) {
+        grid.innerHTML = `<div class="sec-empty">${RuneUI.esc(NEED_BACKEND)}</div>`;
+        setTxt('healthScore', '—');
+        setTxt('healthStatus', 'Chưa quét');
+        setTxt('healthSummary', NEED_BACKEND);
+        setSrc('securitySource', '');
+        return null;
+    }
+    let d;
+    try { d = await RuneNet.security(); }
+    catch (e) { grid.innerHTML = `<div class="sec-empty">Không quét được: ${RuneUI.esc(e.message || String(e))}</div>`; return null; }
+    runeState.security = d;
+
+    grid.innerHTML = '';
+    (d.items || []).forEach(it => {
+        const div = document.createElement('div');
+        const st = it.status || 'unknown';
+        div.className = 'security-item ' + st;
+        div.innerHTML = `<div class="sec-icon">${it.icon || '•'}</div>` +
+            `<div class="sec-info"><div class="sec-title">${RuneUI.esc(it.title)}</div>` +
+            `<div class="sec-status">${RuneUI.esc(SEC_LABEL[st] || st)}</div>` +
+            `<div class="sec-desc">${RuneUI.esc(it.detail || '')}</div>` +
+            `<div class="sec-source">nguồn kiểm tra: ${RuneUI.esc(it.source || '—')}</div></div>` +
+            `<span class="status-ind ${st}">${RuneUI.esc(SEC_LABEL[st] || st)}</span>`;
+        grid.appendChild(div);
+    });
+    await renderDisks();   // thêm thẻ nhiệt độ thật vào lưới
+
+    let score = 100;
+    (d.items || []).forEach(it => { score += (SEC_WEIGHT[it.status] == null ? -2 : SEC_WEIGHT[it.status]); });
+    score = Math.max(0, Math.min(100, score));
+    runeState.healthScore = score;
+    setTxt('healthScore', score);
+    const sc = $('#scoreCircle'); if (sc && sc.style && sc.style.setProperty) sc.style.setProperty('--score', score);
+    setTxt('healthStatus', d.bad > 0 ? 'Tình trạng: CÓ RỦI RO' : (d.warn > 0 ? 'Tình trạng: CẦN CHÚ Ý' : 'Tình trạng: TỐT'));
+    const days = Math.floor((d.uptime || 0) / 86400);
+    setTxt('healthSummary',
+        `${d.good} mục an toàn · ${d.warn} cần chú ý · ${d.bad} rủi ro · ${d.unknown + (d.unsupported || 0)} không kiểm tra được` +
+        ` · uptime ${days} ngày ${Math.floor(((d.uptime || 0) % 86400) / 3600)} giờ` +
+        (d.is_root ? ' · server đang chạy bằng ROOT (nên chạy bằng user thường)' : ' · server chạy bằng user thường'));
+    setSrc('securitySource',
+        `Kết quả đọc trực tiếp từ máy lúc ${nowTime()} — ufw/nftables/iptables, AppArmor/SELinux, apt, lsblk, smartctl, /proc/net, utmp, /proc/self.`);
+    return d;
+}
+
+async function renderOptimize() {
+    const stats = $('#optimizeStats'), box = $('#optimizeActions');
+    if (!stats || !box) return null;
+    if (!runeState.live) {
+        stats.textContent = NEED_BACKEND;
+        box.innerHTML = '';
+        return null;
+    }
+    let d;
+    try { d = await RuneNet.optimize(); }
+    catch (e) { stats.textContent = 'Không đọc được báo cáo tối ưu: ' + (e.message || e); box.innerHTML = ''; return null; }
+    runeState.optimize = d;
+    const mb = b => fmtNum((b || 0) / 1048576, 1) + ' MB';
+    const mi = d.meminfo || {};
+    const caches = (d.caches || []).map(c => `${RuneUI.esc(c.label)}: ${c.bytes < 0 ? 'không đọc được' : mb(c.bytes)}`).join(' · ');
+    stats.innerHTML =
+        `RAM: tổng ${formatBytes(mi.total || 0)} · khả dụng ${formatBytes(mi.available || 0)} · buffer/cache ${mb((mi.buffers || 0) + (mi.cached || 0))} · slab thu hồi được ${mb(mi.s_reclaimable || 0)}<br>` +
+        `Dọn được ngay (đo bằng du thật): <strong>${mb(d.reclaimable_bytes || 0)}</strong>${caches ? ' — ' + caches : ''}` +
+        (d.journal ? `<br>Journal systemd: ${RuneUI.esc(d.journal)}` : '') +
+        ((d.top_memory || []).length ? `<br>Ngốn RAM nhất: ${(d.top_memory || []).slice(0, 3).map(t => `${RuneUI.esc(t.name)} (${formatBytes(t.rss || 0)}, PID ${t.pid})`).join(' · ')}` : '') +
+        (d.is_root ? '' : '<br><span style="color:#fcd34d">Server đang chạy bằng user thường → các mục “cần root” sẽ bị backend từ chối (muốn dùng thì chạy: sudo ./build/rune_server).</span>') +
+        ((runeState.health && runeState.health.cli_enabled === false)
+            ? '<br><span style="color:#fcd34d">Backend đang TẮT thực thi lệnh (RUNE_BIND ngoài loopback hoặc RUNE_ALLOW_CLI=0) → các nút dọn dẹp và “Kết thúc tiến trình” sẽ bị từ chối. Chạy local (./build/rune_server mặc định bind 127.0.0.1) để dùng thật.</span>'
+            : '');
+
+    box.innerHTML = '';
+    (d.actions || []).forEach(a => {
+        const row = document.createElement('div');
+        row.className = 'opt-action' + (a.needs_root ? ' needs-root' : '') + (a.destructive ? ' destructive' : '');
+        row.innerHTML = `<div class="oa-label"><div class="oa-title">${RuneUI.esc(a.label)}</div>` +
+            `<div class="oa-cmd">${RuneUI.esc(a.command || '')}</div></div>`;
+        const b = document.createElement('button');
+        b.className = 'btn-fix' + (a.destructive ? ' danger' : '');
+        b.textContent = a.needs_root && !d.is_root ? 'Cần root' : (a.destructive ? 'Dọn (xác nhận)' : 'Chạy thật');
+        b.disabled = !!(a.needs_root && !d.is_root);
+        b.addEventListener('click', () => runOptimize(a, b));
+        row.appendChild(b);
+        box.appendChild(row);
+    });
+    if (!(d.actions || []).length) box.innerHTML = '<div class="opt-action"><div class="oa-label"><div class="oa-title">Không có hành động nào khả dụng</div></div></div>';
+    return d;
+}
+
+async function runOptimize(a, btn) {
+    if (a.destructive) {
+        const ok = await RuneUI.confirm({
+            title: 'Hành động xóa dữ liệu thật',
+            message: `Lệnh sẽ chạy trên máy bạn:\n\n${a.command}\n\nThao tác này XÓA file thật và KHÔNG hoàn tác được.`,
+            ok: 'Tôi hiểu — chạy'
+        });
+        if (!ok) return;
+    }
+    const old = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Đang chạy…'; }
+    try {
+        const r = await RuneNet.optimizeRun(a.id, !!a.destructive);
+        if (r.ok) {
+            toast(`✓ ${a.label} — exit ${r.exit_code}`, 'ok');
+            logActivity('⚡', `Đã chạy thật: ${a.command || r.command || a.id} → exit ${r.exit_code}`);
+        } else {
+            toast('Backend từ chối: ' + (r.error || 'không rõ'), 'error');
+        }
+    } catch (e) {
+        toast('Lỗi: ' + (e.message || e), 'error');
+    }
+    if (btn) { btn.textContent = old; btn.disabled = false; }
+    renderOptimize();
+}
+
+async function doRealPing() {
+    const hostEl = $('#pingHost'), portEl = $('#pingPort'), out = $('#pingResult');
+    const host = (hostEl && hostEl.value ? hostEl.value : '1.1.1.1').trim();
+    const port = parseInt(portEl && portEl.value, 10) || 443;
+    if (!runeState.live) {
+        setTxt('pingVal', '—');
+        if (out) { out.className = 'ping-result'; out.textContent = NEED_BACKEND + ' (trình duyệt không mở được socket TCP thô).'; }
+        setTxt('netStatus', 'chưa rõ — cần backend');
+        return null;
+    }
+    if (out) { out.className = 'ping-result'; out.textContent = `Đang mở 4 kết nối TCP tới ${host}:${port}…`; }
+    let r;
+    try { r = await RuneNet.pingHost(host, port, 4); }
+    catch (e) { if (out) { out.className = 'ping-result fail'; out.textContent = 'Lỗi: ' + (e.message || e); } return null; }
+    runeState.ping = r;
+    setTxt('pingVal', r.received ? fmtNum(r.avg_ms, 2) + ' ms' : '—');
+    if (out) {
+        out.className = 'ping-result ' + (r.received ? 'ok' : 'fail');
+        out.textContent = r.received
+            ? `${host}:${port} — gửi ${r.sent}, nhận ${r.received}, mất gói ${fmtNum(r.loss_pct, 0)}% · min ${fmtNum(r.min_ms, 2)} ms · TB ${fmtNum(r.avg_ms, 2)} ms · max ${fmtNum(r.max_ms, 2)} ms. ${r.note || ''}`
+            : `${host}:${port} — KHÔNG kết nối được (${r.sent} lần thử, mất 100%). ${r.note || ''}`;
+    }
+    const st = $('#netStatus');
+    if (st) {
+        st.textContent = r.received ? `Đã kết nối Internet (đo thật tới ${host}:${port})` : `Không ra được ${host}:${port} (đo thật)`;
+        st.className = 'net-value ' + (r.received ? 'status-good' : 'status-bad');
+    }
+    logActivity('⏱️', `Ping TCP thật ${host}:${port} → ${r.received ? fmtNum(r.avg_ms, 2) + ' ms' : 'thất bại 100%'}`);
+    return r;
+}
+
+async function renderNetInfo() {
+    if (!runeState.live) {
+        ['publicIp', 'localIp', 'ispVal'].forEach(id => setTxt(id, '—'));
+        setTxt('netStatus', 'chưa rõ — cần backend');
+        return null;
+    }
+    let d;
+    try { d = await RuneNet.netinfo(); } catch (e) { return null; }
+    runeState.netinfo = d;
+    const lan = (d.interfaces || []).filter(i => !i.loopback && i.up)[0] || (d.interfaces || [])[0];
+    setTxt('localIp', lan ? `${lan.ip} (${lan.name})` : '—');
+    setTxt('publicIp', d.public_ip || '—');
+    const pub = $('#publicIp');
+    if (pub) pub.title = d.public_ip ? 'đo thật qua dịch vụ IP công cộng' : (d.note || 'không lấy được');
+    setTxt('ispVal', d.isp ? `${d.isp}${d.country ? ' · ' + d.country : ''}${d.city ? ' · ' + d.city : ''}` : '—');
+    const isp = $('#ispVal');
+    if (isp && !d.isp) isp.title = d.note || 'không xác định được nhà mạng';
+    if (d.gateway) {
+        setTxt('netStatus', `gateway ${d.gateway}${(d.dns || []).length ? ' · DNS ' + d.dns.join(', ') : ''}`);
+        const st = $('#netStatus'); if (st) st.className = 'net-value status-good';
+    }
+    return d;
+}
+
+/** Quét thật toàn bộ: bảo mật + tiến trình + kết nối + ổ đĩa + ping + tối ưu */
+async function realScan() {
+    const results = await Promise.all([
+        renderSecurity().catch(e => null),
+        renderProcesses().catch(e => null),
+        renderConnections().catch(e => null),
+        renderOptimize().catch(e => null),
+        renderNetInfo().catch(e => null),
+        doRealPing().catch(e => null)
+    ]);
+    const sec = results[0];
+    return {
+        security: sec,
+        processes: results[1],
+        connections: results[2],
+        ping: results[5]
+    };
+}
 /* ==================== TRANG KHÓA (MỘT NƠI DUY NHẤT) ==================== */
 function renderKeysPage() {
     const ai = RuneKeys.ai();
@@ -1086,30 +1696,70 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* --- backend C++ --- */
     runeState.live = await RuneNet.ping();
+    if (runeState.live) {
+        try { runeState.health = await RuneNet.health(); } catch (e) { runeState.health = null; }
+    }
     $('#backendState') && ($('#backendState').textContent = runeState.live ? '🟢 Đang chạy (dữ liệu thật)' : '🔴 Chưa chạy — dùng chế độ trình duyệt');
     const srcBadge = document.createElement('span');
     srcBadge.id = 'dataSourceBadge';
     srcBadge.className = 'src-badge ' + (runeState.live ? 'live' : 'sim');
-    srcBadge.textContent = runeState.live ? '● Backend C++: dữ liệu thật' : '○ Chế độ trình duyệt: dữ liệu mô phỏng';
+    srcBadge.textContent = runeState.live ? '● Backend C++: số liệu thật từ máy' : '○ Chưa có backend C++: không đo được (hiện “—”)';
     const dashHead = $('#page-dashboard .page-header');
     if (dashHead) dashHead.appendChild(srcBadge);
     $('#recheckBackend') && onSel('#recheckBackend', 'click', async () => {
         $('#backendState').textContent = 'Đang kiểm tra…';
         const ok = await RuneNet.ping(2500);
         runeState.live = ok;
-        $('#backendState').textContent = ok ? '🟢 Đang chạy (dữ liệu thật)' : '🔴 Chưa chạy — dùng chế độ trình duyệt';
+        $('#backendState').textContent = ok ? '🟢 Đang chạy (dữ liệu thật)' : '🔴 Chưa chạy — chế độ trình duyệt (không có số liệu máy)';
         toast(ok ? 'Backend C++ đã kết nối' : 'Không thấy backend C++ (chạy ./build.sh rồi ./build/rune_server)', ok ? 'ok' : 'error');
         updateSystem();
+        if (ok) { renderNetInfo(); realScan(); renderMarketData(($('#countrySelect') || {}).value, false); }
     });
 
-    /* --- dashboard --- */
+    /* --- dashboard: toàn bộ số liệu thật --- */
     onSel('#countrySelect', 'change', e => renderMarketData(e.target.value));
-    const ms = document.createElement('div');
-    ms.id = 'marketSource'; ms.className = 'src-line';
-    $('.chart-container') && $('.chart-container').after(ms);
+
+    /* dòng ghi nguồn dữ liệu thị trường */
+    const cc = $('.chart-container');
+    if (cc && cc.parentNode && !document.getElementById('marketSource')) {
+        const ms = document.createElement('div');
+        ms.id = 'marketSource'; ms.className = 'src-line';
+        cc.parentNode.insertBefore(ms, cc.nextSibling);
+    }
+    /* nút bắt backend bỏ cache và gọi lại World Bank + Yahoo Finance */
+    const csel = $('#countrySelect');
+    if (csel && csel.parentNode && !document.getElementById('marketRefreshBtn')) {
+        const rb = document.createElement('button');
+        rb.id = 'marketRefreshBtn';
+        rb.className = 'btn-fix';
+        rb.textContent = '🔄 Lấy giá mới';
+        rb.title = 'Bỏ cache 6 giờ, gọi lại World Bank + Yahoo Finance';
+        rb.addEventListener('click', async () => {
+            rb.disabled = true; rb.textContent = '⏳ Đang gọi API thật…';
+            await renderMarketData((csel || {}).value, true);
+            rb.disabled = false; rb.textContent = '🔄 Lấy giá mới';
+        });
+        csel.parentNode.appendChild(rb);
+    }
+
     await renderMarketData('VN');
     await updateSystem();
-    setInterval(updateSystem, runeState.live ? 2000 : 1500);
+    await renderNetInfo();
+    await realScan();          // tiến trình + kết nối + bảo mật + tối ưu + ping: tất cả đo thật
+
+    /* vòng lặp cập nhật: chỉ chạy dày khi có backend thật */
+    setInterval(updateSystem, runeState.live ? 2000 : 8000);
+    if (runeState.live) {
+        setInterval(renderProcesses, 4000);
+        setInterval(renderConnections, 6000);
+        setInterval(renderNetInfo, 120000);
+        setInterval(renderSecurity, 180000);
+    }
+
+    /* đo ping TCP thật theo yêu cầu người dùng */
+    onSel('#pingBtn', 'click', () => doRealPing());
+    onSel('#pingHost', 'keydown', e => { if (e.key === 'Enter') doRealPing(); });
+    onSel('#optimizeRefresh', 'click', () => renderOptimize());
 
     /* --- chat --- */
     sendBtn.addEventListener('click', handleSend);
@@ -1181,22 +1831,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     onSel('#chatKeyChip', 'click', () => goToPage('keys'));
 
-    /* --- nút quét nhanh --- */
+    /* --- nút QUÉT THẬT: backend đọc trực tiếp máy, không mô phỏng --- */
     onSel('#quickScanBtn', 'click', async function () {
-        const b = this; b.disabled = true;
+        const b = this;
+        b.disabled = true;
         let dots = 0;
-        const anim = setInterval(() => { dots = (dots + 1) % 4; b.textContent = '🔍 Đang quét' + '.'.repeat(dots); }, 260);
-        let real = '';
-        if (runeState.live) {
-            try { const r = await RuneNet.cli('ps -eo comm,pcpu --sort=-pcpu | head -5'); real = '\n' + r.output; } catch (e) {}
+        const anim = setInterval(() => { dots = (dots + 1) % 4; b.textContent = '🔍 Đang quét thật' + '.'.repeat(dots); }, 260);
+        const t0 = Date.now();
+        let res = null, err = '';
+        try { res = await realScan(); }
+        catch (e) { err = e.message || String(e); }
+        clearInterval(anim);
+        b.textContent = err ? '⚠️ Quét lỗi' : '✅ Quét xong';
+        runeState.lastScan = Date.now();
+        if (err) {
+            toast('Quét thất bại: ' + err, 'error');
+            logActivity('🛡️', 'Quét bảo mật thất bại: ' + err);
+        } else if (!runeState.live) {
+            toast('Chưa có backend C++ — không có gì để quét thật', 'error');
+            logActivity('🛡️', 'Quét bị bỏ qua: chưa kết nối backend C++');
+        } else {
+            const sec = res.security || {};
+            toast(`Quét thật xong trong ${((Date.now() - t0) / 1000).toFixed(1)}s — điểm ${runeState.healthScore}/100`, (sec.bad || 0) ? 'error' : 'ok');
+            logActivity('🛡️', `Quét thật: ${sec.good || 0} an toàn · ${sec.warn || 0} cảnh báo · ${sec.bad || 0} rủi ro · điểm ${runeState.healthScore}/100` +
+                ((res.processes || {}).count ? ` · ${res.processes.count} tiến trình` : '') +
+                ((res.connections || {}).total != null ? ` · ${res.connections.total} kết nối` : ''));
         }
-        setTimeout(() => {
-            clearInterval(anim);
-            b.textContent = '✅ Quét xong';
-            logActivity('🛡️', 'Quét bảo mật nhanh hoàn tất' + (real ? ' (dữ liệu backend thật)' : ' (mô phỏng)'));
-            toast('Quét xong — xem mục Bảo mật', 'ok');
-            setTimeout(() => { b.textContent = '🔍 Quét nhanh'; b.disabled = false; }, 2200);
-        }, real ? 900 : 1800);
+        setTimeout(() => { b.textContent = '🔍 Quét thật'; b.disabled = false; }, 2200);
     });
 
     $$('.btn-fix').forEach(b => b.addEventListener('click', async function () {

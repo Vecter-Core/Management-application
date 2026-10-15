@@ -47,6 +47,7 @@
 #include "market_data.h"
 #include "key_manager.h"
 #include "cli_runner.h"
+#include "system_probe.h"
 
 namespace fs = std::filesystem;
 
@@ -349,6 +350,12 @@ static Response api_health() {
       << "\"cli_enabled\":" << (g_allow_cli ? "true" : "false") << ","
       << "\"loopback_only\":" << (g_loopback_only ? "true" : "false") << ","
       << "\"public_dir\":\"" << json_escape(public_root().string()) << "\","
+      << "\"linux_proc\":" << (probe::available() ? "true" : "false") << ","
+      << "\"curl\":" << (access("/usr/bin/curl", X_OK) == 0 ? "true" : "false") << ","
+      << "\"endpoints\":[\"/api/health\",\"/api/system\",\"/api/market\",\"/api/chart\",\"/api/processes\","
+      << "\"/api/connections\",\"/api/security\",\"/api/disks\",\"/api/ping\",\"/api/optimize\","
+      << "\"/api/optimize/run\",\"/api/kill\",\"/api/netinfo\",\"/api/keys\",\"/api/cli\","
+      << "\"/api/web/fetch\",\"/api/web/search\"],"
       << "\"time\":\"" << json_escape([] {
             auto t = std::time(nullptr); char b[40];
             std::strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S%z", std::localtime(&t));
@@ -402,13 +409,19 @@ static Response api_system() {
 static Response api_market(const std::string& path) {
     std::string country = query_param(path, "country");
     if (country.empty()) country = "VN";
+    bool force = query_param(path, "refresh") == "1";
+    if (force) MarketDataManager::instance().refresh_market(country, true);
 
     const EconomicIndicator* eco = xkiro_get_economic_data(country.c_str());
     Stock stocks[50];
     size_t count = xkiro_get_stock_list(country.c_str(), stocks, 50);
+    std::string meta = MarketDataManager::instance().meta_json(country);
+    auto series = MarketDataManager::instance().chart_series(country);
 
     std::ostringstream j;
-    j << "{\"country\":\"" << json_escape(country) << "\",\"source\":\"RUNE C++ MarketData (mô hình hóa theo quốc gia)\",\"indicator\":"
+    // meta (nguồn thật, có mô phỏng không, năm số liệu) được ghép nguyên khối JSON
+    j << meta.substr(0, meta.size() - 1) << ",";   // bỏ dấu } cuối của meta
+    j << "\"indicator\":"
       << "{\"index_name\":\"" << json_escape(eco->index_name) << "\","
       << "\"index_value\":" << eco->index_value << ","
       << "\"index_change\":" << eco->index_change << ","
@@ -427,8 +440,279 @@ static Response api_market(const std::string& path) {
           << "\"change_pct\":" << stocks[i].change_pct << ","
           << "\"volume\":" << stocks[i].volume << "}";
     }
+    j << "],\"chart\":[";
+    for (size_t i = 0; i < series.size(); i++) {
+        if (i) j << ",";
+        j << "{\"t\":" << series[i].first << ",\"v\":" << series[i].second << "}";
+    }
     j << "]}";
     return json_response(200, j.str());
+}
+
+/* chuỗi giá thật của 1 mã bất kỳ (Yahoo Finance) */
+static Response api_chart(const std::string& path) {
+    std::string symbol = query_param(path, "symbol");
+    if (symbol.empty()) return json_response(400, "{\"ok\":false,\"error\":\"thiếu ?symbol=VD AAPL\"}");
+    uint64_t ts[512]; double vals[512]; size_t count = 512;
+    int rc = xkiro_get_chart_data(symbol.c_str(), ts, vals, &count);
+    std::ostringstream j;
+    j << "{\"ok\":" << (rc == 0 && count ? "true" : "false") << ",\"symbol\":\"" << json_escape(symbol)
+      << "\",\"count\":" << count << ",\"series\":[";
+    for (size_t i = 0; i < count; i++) { if (i) j << ","; j << "{\"t\":" << ts[i] << ",\"v\":" << vals[i] << "}"; }
+    j << "]}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- tiến trình THẬT từ /proc ---------------- */
+static Response api_processes(const std::string& path) {
+    if (!probe::available())
+        return json_response(501, "{\"ok\":false,\"error\":\"Không phải Linux (/proc) nên không đọc được tiến trình thật\"}");
+    std::string qs = query_param(path, "limit");
+    long limit = qs.empty() ? 60 : std::atol(qs.c_str());
+    limit = std::min<long>(std::max<long>(limit, 1), 500);
+
+    bool first = false;
+    auto ps = probe::processes((size_t)limit, &first);
+    std::ostringstream j;
+    j << "{\"ok\":true,\"simulated\":false,\"first_sample\":" << (first ? "true" : "false")
+      << ",\"cpu_total_pct\":" << probe::cpu_total_pct()
+      << ",\"count\":" << ps.size() << ",\"processes\":[";
+    for (size_t i = 0; i < ps.size(); i++) {
+        if (i) j << ",";
+        const auto& p = ps[i];
+        j << "{\"pid\":" << p.pid
+          << ",\"name\":\"" << json_escape(p.name) << "\""
+          << ",\"state\":\"" << json_escape(p.state) << "\""
+          << ",\"user\":\"" << json_escape(p.user) << "\""
+          << ",\"cmdline\":\"" << json_escape(p.cmdline.substr(0, 300)) << "\""
+          << ",\"exe\":\"" << json_escape(p.exe) << "\""
+          << ",\"cpu_pct\":" << p.cpu_pct
+          << ",\"rss\":" << p.rss
+          << ",\"threads\":" << p.threads
+          << ",\"started\":" << p.started_unix
+          << ",\"trust\":\"" << json_escape(p.trust) << "\""
+          << ",\"trust_note\":\"" << json_escape(p.trust_note) << "\"}";
+    }
+    j << "]}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- kết nối mạng THẬT từ /proc/net ---------------- */
+static Response api_connections(const std::string& path) {
+    if (!probe::available())
+        return json_response(501, "{\"ok\":false,\"error\":\"Không phải Linux (/proc) nên không đọc được kết nối thật\"}");
+    long limit = std::atol(query_param(path, "limit").c_str());
+    if (limit <= 0) limit = 120;
+    limit = std::min<long>(limit, 500);
+    bool only_established = query_param(path, "established") == "1";
+    auto cs = probe::connections((size_t)limit);
+    std::ostringstream j;
+    size_t n = 0, exposed = 0, listening = 0;
+    for (auto& c : cs) { if (!c.loopback && !c.listening) exposed++; if (c.listening) listening++; }
+    j << "{\"ok\":true,\"simulated\":false,\"total\":" << cs.size()
+      << ",\"exposed\":" << exposed << ",\"listening\":" << listening << ",\"connections\":[";
+    for (auto& c : cs) {
+        if (only_established && c.state != "ESTABLISHED") continue;
+        if (n++) j << ",";
+        j << "{\"proto\":\"" << json_escape(c.proto) << "\",\"local\":\"" << json_escape(c.local)
+          << "\",\"remote\":\"" << json_escape(c.remote) << "\",\"state\":\"" << json_escape(c.state)
+          << "\",\"pid\":" << c.pid << ",\"process\":\"" << json_escape(c.pname)
+          << "\",\"loopback\":" << (c.loopback ? "true" : "false")
+          << ",\"listening\":" << (c.listening ? "true" : "false") << "}";
+        if ((long)n >= limit) break;
+    }
+    j << "]}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- kiểm tra bảo mật THẬT ---------------- */
+static Response api_security() {
+    auto items = probe::security();
+    std::ostringstream j;
+    size_t good = 0, warn = 0, bad = 0, unknown = 0;
+    for (auto& it : items) {
+        if (it.status == "good") good++;
+        else if (it.status == "warn") warn++;
+        else if (it.status == "bad") bad++;
+        else unknown++;
+    }
+    j << "{\"ok\":true,\"simulated\":false,\"good\":" << good << ",\"warn\":" << warn
+      << ",\"bad\":" << bad << ",\"unknown\":" << unknown << ",\"uptime\":" << probe::uptime_seconds()
+      << ",\"is_root\":" << (geteuid() == 0 ? "true" : "false") << ",\"items\":[";
+    for (size_t i = 0; i < items.size(); i++) {
+        if (i) j << ",";
+        j << "{\"id\":\"" << json_escape(items[i].id) << "\",\"icon\":\"" << json_escape(items[i].icon)
+          << "\",\"title\":\"" << json_escape(items[i].title) << "\",\"status\":\"" << json_escape(items[i].status)
+          << "\",\"detail\":\"" << json_escape(items[i].detail) << "\",\"source\":\"" << json_escape(items[i].source) << "\"}";
+    }
+    j << "]}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- ổ đĩa + nhiệt độ + ping THẬT ---------------- */
+static Response api_disks() {
+    auto ds = probe::disks();
+    std::ostringstream j;
+    j << "{\"ok\":true,\"simulated\":false,\"disks\":[";
+    for (size_t i = 0; i < ds.size(); i++) {
+        if (i) j << ",";
+        j << "{\"device\":\"" << json_escape(ds[i].device) << "\",\"mount\":\"" << json_escape(ds[i].mount)
+          << "\",\"fstype\":\"" << json_escape(ds[i].fstype) << "\",\"total\":" << ds[i].total
+          << ",\"used\":" << ds[i].used << ",\"avail\":" << ds[i].avail << ",\"pct\":" << ds[i].pct << "}";
+    }
+    j << "],\"temps\":[";
+    auto ts = probe::temps();
+    for (size_t i = 0; i < ts.size(); i++) {
+        if (i) j << ",";
+        j << "{\"zone\":\"" << json_escape(ts[i].zone) << "\",\"celsius\":" << ts[i].celsius << "}";
+    }
+    j << "]}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- thông tin mạng THẬT của máy ---------------- */
+static Response api_netinfo(const std::string& path) {
+    const bool want_public = query_param(path, "public") != "0";
+    NetInfo ni = probe::net_info(want_public);   // struct NetInfo khai báo toàn cục trong system_probe.h
+    std::ostringstream j;
+    j << "{\"ok\":true,\"simulated\":false,\"hostname\":\"" << json_escape(ni.hostname) << "\","
+      << "\"interfaces\":[";
+    for (size_t i = 0; i < ni.ifaces.size(); i++) {
+        if (i) j << ",";
+        j << "{\"name\":\"" << json_escape(ni.ifaces[i].name) << "\",\"ip\":\"" << json_escape(ni.ifaces[i].ip)
+          << "\",\"mask\":\"" << json_escape(ni.ifaces[i].mask) << "\",\"up\":" << (ni.ifaces[i].up ? "true" : "false")
+          << ",\"loopback\":" << (ni.ifaces[i].loopback ? "true" : "false") << "}";
+    }
+    j << "],\"gateway\":\"" << json_escape(ni.gateway) << "\",\"gateway_iface\":\"" << json_escape(ni.gw_iface)
+      << "\",\"dns\":[";
+    for (size_t i = 0; i < ni.dns.size(); i++) { if (i) j << ","; j << "\"" << json_escape(ni.dns[i]) << "\""; }
+    j << "],\"public_ip\":\"" << json_escape(ni.public_ip) << "\",\"isp\":\"" << json_escape(ni.isp)
+      << "\",\"country\":\"" << json_escape(ni.country) << "\",\"city\":\"" << json_escape(ni.city)
+      << "\",\"real_public\":" << (ni.real_public ? "true" : "false")
+      << ",\"note\":\"" << json_escape(ni.note) << "\"}";
+    return json_response(200, j.str());
+}
+
+static Response api_ping(const std::string& path, const std::string& body) {
+    std::string host = query_param(path, "host");
+    if (host.empty()) json_get_string(body, "host", host);
+    if (host.empty()) host = "1.1.1.1";
+    long port = std::atol(query_param(path, "port").c_str());
+    if (port <= 0) port = json_get_long(body, "port", 443);
+    long count = std::atol(query_param(path, "count").c_str());
+    if (count <= 0) count = json_get_long(body, "count", 4);
+
+    auto r = probe::tcp_ping(host, (int)port, (int)count);
+    std::ostringstream j;
+    j << "{\"ok\":" << (r.ok > 0 ? "true" : "false") << ",\"simulated\":false,\"host\":\"" << json_escape(r.host)
+      << "\",\"port\":" << r.port << ",\"sent\":" << r.sent << ",\"received\":" << r.ok
+      << ",\"min_ms\":" << r.min_ms << ",\"avg_ms\":" << r.avg_ms << ",\"max_ms\":" << r.max_ms
+      << ",\"loss_pct\":" << (r.sent ? (100.0 * (r.sent - r.ok) / r.sent) : 0)
+      << ",\"note\":\"" << json_escape(r.note) << "\",\"samples\":[";
+    for (size_t i = 0; i < r.samples.size(); i++) { if (i) j << ","; j << r.samples[i]; }
+    j << "]}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- tối ưu hệ thống: báo cáo thật + hành động thật ---------------- */
+static Response api_optimize() {
+    if (!probe::available()) return json_response(501, "{\"ok\":false,\"error\":\"Chỉ đọc được trên Linux (/proc)\"}");
+    return json_response(200, probe::optimize_report());
+}
+
+struct OptAction { const char* id; const char* label; const char* cmd; bool needs_root; bool destructive; };
+static const OptAction OPT_ACTIONS[] = {
+    { "sync",          "Ghi đệm xuống đĩa (sync)",                        "sync",                                        false, false },
+    { "drop_caches",   "Giải phóng page cache",                           "echo 3 > /proc/sys/vm/drop_caches",           true,  false },
+    { "apt_clean",     "Xóa cache gói apt",                               "apt-get clean -y",                            true,  false },
+    { "journal_vacuum","Cắt nhật ký systemd còn 100MB",                   "journalctl --vacuum-size=100M",               true,  false },
+    { "user_cache",    "Xóa file cache cũ hơn 30 ngày trong ~/.cache",    nullptr,                                       false, true  },
+    { "tmp_clean",     "Xóa file tạm cũ hơn 7 ngày trong /tmp",           "find /tmp -mindepth 1 -atime +7 -delete",     false, true  },
+};
+
+static Response api_optimize_run(const std::string& body) {
+    if (!g_allow_cli)
+        return json_response(403, "{\"ok\":false,\"error\":\"Hành động hệ thống đang tắt (server không chạy loopback). Đặt RUNE_ALLOW_CLI=1 nếu bạn chấp nhận rủi ro.\"}");
+    std::string id;
+    if (!json_get_string(body, "id", id) || id.empty())
+        return json_response(400, "{\"ok\":false,\"error\":\"thiếu 'id' hành động\"}");
+    std::string confirm;
+    json_get_string(body, "confirm", confirm);
+
+    const OptAction* act = nullptr;
+    for (const auto& a : OPT_ACTIONS) if (id == a.id) { act = &a; break; }
+    if (!act) {
+        std::ostringstream j;
+        j << "{\"ok\":false,\"error\":\"không có hành động '" << json_escape(id) << "'\",\"allowed\":[";
+        for (size_t i = 0; i < sizeof(OPT_ACTIONS) / sizeof(OPT_ACTIONS[0]); i++) { if (i) j << ","; j << "\"" << OPT_ACTIONS[i].id << "\""; }
+        j << "]}";
+        return json_response(400, j.str());
+    }
+    if (act->needs_root && geteuid() != 0)
+        return json_response(403, std::string("{\"ok\":false,\"error\":\"'") + act->id + "' cần quyền root — hãy chạy server bằng sudo\"}");
+    if (act->destructive && confirm != "1" && confirm != "true")
+        return json_response(400, std::string("{\"ok\":false,\"error\":\"'") + act->id + "' sẽ XÓA file, cần confirm=\"1\"\"}");
+
+    std::string cmd = act->cmd ? act->cmd : "";
+    if (cmd.empty() && id == "user_cache") {
+        const char* home = getenv("HOME");
+        std::string h = home ? home : "/root";
+        cmd = "find " + h + "/.cache -type f -atime +30 -delete";
+    }
+    if (cmd.empty()) return json_response(400, "{\"ok\":false,\"error\":\"không dựng được lệnh cho hành động này\"}");
+
+    CliResult r = run_command(cmd, "", 120);
+    std::ostringstream j;
+    j << "{\"ok\":" << (r.exit_code == 0 ? "true" : "false") << ",\"action\":\"" << act->id
+      << "\",\"label\":\"" << json_escape(act->label) << "\",\"command\":\"" << json_escape(cmd)
+      << "\",\"exit_code\":" << r.exit_code << ",\"output\":\"" << json_escape(r.output.substr(0, 20000)) << "\"}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- kết thúc tiến trình THẬT ---------------- */
+static Response api_kill(const std::string& body) {
+    if (!g_allow_cli)
+        return json_response(403, "{\"ok\":false,\"error\":\"/api/kill đang tắt (server không chạy loopback)\"}");
+    long pid = json_get_long(body, "pid", 0);
+    std::string force;
+    json_get_string(body, "force", force);
+    if (pid <= 0) return json_response(400, "{\"ok\":false,\"error\":\"thiếu 'pid'\"}");
+    if (pid == (long)getpid() || pid == (long)getppid())
+        return json_response(403, "{\"ok\":false,\"error\":\"từ chối kết thúc chính server RUNE\"}");
+    std::string err;
+    int sig = (force == "1" || force == "true") ? SIGKILL : SIGTERM;
+    if (probe::kill_pid(pid, sig, err) != 0)
+        return json_response(400, "{\"ok\":false,\"error\":\"" + json_escape(err) + "\"}");
+    std::ostringstream j;
+    j << "{\"ok\":true,\"pid\":" << pid << ",\"signal\":\"" << (sig == SIGKILL ? "SIGKILL" : "SIGTERM")
+      << "\",\"note\":\"đã gửi tín hiệu thật tới tiến trình\"}";
+    return json_response(200, j.str());
+}
+
+/* ---------------- đọc web qua backend (né CORS cho trình duyệt) ---------------- */
+static Response api_web_fetch(const std::string& path, const std::string& body) {
+    std::string url = query_param(path, "url");
+    if (url.empty()) json_get_string(body, "url", url);
+    if (url.empty()) return json_response(400, "{\"ok\":false,\"error\":\"thiếu url\"}");
+    char* raw = xkiro_web_fetch(url.c_str());
+    if (!raw) return json_response(502, "{\"ok\":false,\"error\":\"không tải được (mạng/chặn/không có curl)\",\"url\":\"" + json_escape(url) + "\"}");
+    std::string content(raw);
+    xkiro_free_string(raw);
+    std::ostringstream j;
+    j << "{\"ok\":true,\"url\":\"" << json_escape(url) << "\",\"bytes\":" << content.size()
+      << ",\"content\":\"" << json_escape(content.substr(0, 400000)) << "\"}";
+    return json_response(200, j.str());
+}
+
+static Response api_web_search(const std::string& path, const std::string& body) {
+    std::string q = query_param(path, "q");
+    if (q.empty()) json_get_string(body, "q", q);
+    if (q.empty()) return json_response(400, "{\"ok\":false,\"error\":\"thiếu q\"}");
+    char* raw = xkiro_web_search(q.c_str());
+    if (!raw) return json_response(502, "{\"ok\":false,\"error\":\"không gọi được DuckDuckGo (mạng/chặn/không có curl)\"}");
+    std::string content(raw);
+    xkiro_free_string(raw);
+    return json_response(200, "{\"ok\":true,\"query\":\"" + json_escape(q) + "\",\"provider\":\"DuckDuckGo Instant Answer\",\"raw\":" + content + "}");
 }
 
 static Response api_keys_get(const std::string& path) {
@@ -558,7 +842,7 @@ static Response route(const std::string& method, const std::string& full_path, c
         if (method != "GET" && method != "POST" && method != "DELETE" && method != "HEAD")
             return text_response(405, "Method Not Allowed");
 
-        if (path == "/api/health" || path == "/api/ping") return api_health();
+        if (path == "/api/health") return api_health();
         if (path == "/api/system") return api_system();
         if (path == "/api/market") return api_market(path + query);
 
@@ -567,6 +851,25 @@ static Response route(const std::string& method, const std::string& full_path, c
             if (method == "POST") return api_keys_post(body);
             if (method == "DELETE") return api_keys_delete(path + query, body);
         }
+        if (path == "/api/processes") return api_processes(full_path);
+        if (path == "/api/connections" || path == "/api/netstat") return api_connections(full_path);
+        if (path == "/api/security") return api_security();
+        if (path == "/api/disks" || path == "/api/temps") return api_disks();
+        if (path == "/api/netinfo") return api_netinfo(full_path);
+        if (path == "/api/ping") return api_ping(full_path, body);
+        if (path == "/api/optimize") return api_optimize();
+        if (path == "/api/optimize/run") {
+            if (method != "POST") return text_response(405, "POST /api/optimize/run {\"id\":\"sync\"}");
+            return api_optimize_run(body);
+        }
+        if (path == "/api/kill") {
+            if (method != "POST") return text_response(405, "POST /api/kill {\"pid\":1234}");
+            return api_kill(body);
+        }
+        if (path == "/api/chart") return api_chart(full_path);
+        if (path == "/api/web/fetch") return api_web_fetch(full_path, body);
+        if (path == "/api/web/search") return api_web_search(full_path, body);
+
         if (path == "/api/cli") {
             if (method != "POST") return text_response(405, "POST /api/cli {\"command\":\"...\"}");
             return api_cli(body);

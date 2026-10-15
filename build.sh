@@ -36,6 +36,7 @@ else
         src/cpp/cli_runner.cpp \
         src/cpp/key_manager.cpp \
         src/cpp/web_scraper.cpp \
+        src/cpp/system_probe.cpp \
         -o build/rune_server
     BIN=build/rune_server
 fi
