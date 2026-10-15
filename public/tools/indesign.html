@@ -2,97 +2,238 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xLayout - Dàn trang InDesign</title>
+    <title>xLayout — Dàn trang</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI", sans-serif; background:#545454; color:#333; height:100vh; display:flex; flex-direction:column; }
-        .topbar { height:36px; background:#ff4081; color:white; display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:600; gap:8px; }
-        .workspace { flex:1; display:flex; }
-        .pages-panel { width:180px; background:#333; color:#ddd; padding:10px; border-right:1px solid #222; overflow-y:auto; }
-        .panel-title { font-size:11px; text-transform:uppercase; color:#999; margin-bottom:8px; }
-        .page-thumb { width:100px; height:130px; background:white; margin:10px auto; border-radius:2px; box-shadow:0 2px 8px rgba(0,0,0,0.3); position:relative; font-size:10px; color:#666; padding:8px; cursor:pointer; }
-        .page-thumb.active { outline:3px solid #ff4081; }
-        .spread-area { flex:1; background:#464646; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:40px; gap:20px; }
-        .page-spread { display:flex; gap:0; box-shadow:0 8px 30px rgba(0,0,0,0.4); }
-        .page { width:612px; height:792px; background:white; position:relative; padding:72px; }
-        .page.margin-guide::before { content:''; position:absolute; inset:36px; border:1px dotted #ff4081; pointer-events:none; }
-        .ruler-h { position:absolute; top:0; left:0; right:0; height:24px; background:#ddd; border-bottom:1px solid #aaa; }
-        
-        .right-panel { width:220px; background:#333; color:#ddd; padding:12px; border-left:1px solid #222; }
-        .prop-group { margin-bottom:16px; }
-        .prop-title { font-size:11px; text-transform:uppercase; color:#999; margin-bottom:6px; }
-        .style-item { padding:6px 8px; background:#404040; border-radius:4px; margin-bottom:4px; font-size:12px; cursor:pointer; }
-        .style-item:hover { background:#505050; }
-        .char-style { font-weight:600; }
-        
-        .statusbar { height:22px; background:#333; color:#ccc; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; }
+        :root { --acc:#ff4081; --bg:#252526; --bg2:#2f2f31; --bd:#434346; --tx:#ececec; --dim:#9a9a9a; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#ff4081,#c2185b); color:#fff; display:flex; align-items:center; padding:0 10px; gap:6px; font-weight:700; flex-shrink:0; }
+        .menu-item { padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:500; }
+        .menu-item:hover { background:rgba(0,0,0,.22); }
+        .menu-pop { position:fixed; display:none; min-width:225px; background:#2f2f31; border:1px solid #4a4a4d; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.6); z-index:999; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--acc); }
+        .menu-pop span.k { opacity:.65; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #444; margin:4px 2px; }
+        .tbtn { padding:5px 11px; background:rgba(0,0,0,.25); border:1px solid rgba(0,0,0,.3); color:#fff; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .tbtn:hover { background:rgba(255,255,255,.25); }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .pages { width:150px; background:var(--bg2); border-right:1px solid var(--bd); padding:8px; overflow-y:auto; flex-shrink:0; }
+        .pt { font-size:10.5px; text-transform:uppercase; color:#999; font-weight:700; margin:10px 0 6px; letter-spacing:.4px; }
+        .pg { background:#fff; color:#222; border-radius:3px; margin-bottom:7px; padding:6px; font-size:9.5px; height:84px; overflow:hidden; position:relative; cursor:pointer; border:2px solid transparent; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+        .pg.on { border-color:var(--acc); }
+        .pg b { display:block; font-size:10px; margin-bottom:3px; }
+        .pg .bar { height:2px; background:#ddd; margin:2px 0; border-radius:1px; }
+        .pg .num { position:absolute; bottom:3px; right:5px; font-size:9px; color:#999; }
+        .tools { width:48px; background:var(--bg2); padding:6px 4px; display:flex; flex-direction:column; gap:3px; flex-shrink:0; border-right:1px solid var(--bd); }
+        .tb { width:40px; height:34px; border-radius:5px; border:1px solid transparent; background:transparent; color:#fff; font-size:15px; cursor:pointer; }
+        .tb:hover { background:#3c3c3f; }
+        .tb.active { background:var(--acc); }
+        .stage { flex:1; background:#3a3a3d; overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:26px; min-width:0; }
+        #page { background:#fff; color:#111; position:relative; box-shadow:0 6px 30px rgba(0,0,0,.5); transform-origin:top center; flex-shrink:0; }
+        #guides { position:absolute; inset:0; pointer-events:none; }
+        .guide { position:absolute; background:rgba(0,120,255,.45); }
+        .frame { position:absolute; overflow:hidden; cursor:move; }
+        .frame.sel { outline:1.6px solid var(--acc); }
+        .frame .txt { width:100%; height:100%; overflow:auto; outline:none; }
+        .frame img { width:100%; height:100%; object-fit:cover; display:block; }
+        .hd { position:absolute; width:9px; height:9px; background:#fff; border:1.5px solid var(--acc); border-radius:2px; }
+        .right { width:255px; background:var(--bg2); border-left:1px solid var(--bd); padding:10px; overflow-y:auto; flex-shrink:0; }
+        .row { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:11.5px; }
+        .row label { width:62px; color:#aaa; flex-shrink:0; }
+        .row input[type=text], .row input[type=number], .row select { flex:1; min-width:0; background:#232325; border:1px solid #4a4a4d; color:#fff; padding:4px 6px; border-radius:4px; font-size:11.5px; font-family:inherit; }
+        .row input[type=color] { width:34px; height:24px; border:1px solid #4a4a4d; border-radius:4px; background:transparent; cursor:pointer; padding:0; }
+        .row input[type=range] { flex:1; accent-color:var(--acc); }
+        .g2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+        .g3 button, .btnrow button { padding:5px 4px; background:#232325; border:1px solid #4a4a4d; color:#fff; border-radius:4px; cursor:pointer; font-size:11px; }
+        .g3 button:hover, .btnrow button:hover { border-color:var(--acc); }
+        .g3 button.on { background:var(--acc); border-color:var(--acc); font-weight:700; }
+        .btnrow { display:flex; gap:4px; margin-bottom:6px; }
+        .btnrow button { flex:1; }
+        .style-item { padding:5px 7px; background:#3a3a3d; border-radius:4px; margin-bottom:3px; font-size:11.5px; cursor:pointer; display:flex; justify-content:space-between; gap:6px; }
+        .style-item:hover { background:#4a4a4d; }
+        .statusbar { height:22px; background:#1b1b1d; border-top:1px solid var(--bd); color:#bbb; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .statusbar [data-status-text] { margin-left:auto; color:var(--acc); }
+        #printArea { display:none; }
+        @media print {
+            body { background:#fff; }
+            body > *:not(#printArea) { display:none !important; }
+            #printArea { display:block !important; }
+            #printArea .pgx { box-shadow:none !important; margin:0 auto !important; page-break-after:always; }
+        }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <span>📐 xLayout CC 2026</span>
-        <span style="font-weight:400; opacity:0.9; margin-left:8px;">Desktop Publishing · Layout Design</span>
+        <span>▤ xLayout</span>
+        <div style="display:flex; gap:2px; margin-left:8px;">
+            <div class="menu-item" data-menu="file">Tệp</div>
+            <div class="menu-item" data-menu="edit">Chỉnh sửa</div>
+            <div class="menu-item" data-menu="object">Đối tượng</div>
+            <div class="menu-item" data-menu="type">Kiểu chữ</div>
+            <div class="menu-item" data-menu="layout">Dàn trang</div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="tbtn" data-action="undo">↶</button>
+            <button class="tbtn" data-action="redo">↷</button>
+            <button class="tbtn" data-action="aiLayout">✨ AI dàn trang</button>
+            <button class="tbtn" data-action="printDoc">🖨 In / PDF</button>
+        </div>
+    </div>
+
+    <div class="menu-pop" id="menu-file" data-menu-pop>
+        <div data-action="newDoc">Mới… <span class="k">Ctrl+N</span></div>
+        <div data-action="openProject">Mở dự án (.json)</div>
+        <hr>
+        <div data-action="saveProject">Lưu dự án (.json) <span class="k">Ctrl+S</span></div>
+        <div data-action="exportHtml">Xuất HTML</div>
+        <div data-action="printDoc">In / Xuất PDF <span class="k">Ctrl+P</span></div>
+        <div data-action="exportTxt">Xuất nội dung .txt</div>
+    </div>
+    <div class="menu-pop" id="menu-edit" data-menu-pop>
+        <div data-action="undo">Hoàn tác <span class="k">Ctrl+Z</span></div>
+        <div data-action="redo">Làm lại <span class="k">Ctrl+Y</span></div>
+        <hr>
+        <div data-action="duplicate">Nhân đôi khung <span class="k">Ctrl+D</span></div>
+        <div data-action="deleteFrame">Xóa khung <span class="k">Del</span></div>
+        <div data-action="clearPage">Xóa hết khung trang này</div>
+    </div>
+    <div class="menu-pop" id="menu-object" data-menu-pop>
+        <div data-action="front">Đưa lên trước</div>
+        <div data-action="back">Đưa xuống sau</div>
+        <hr>
+        <div data-action="align" data-arg="left">Căn trái trang</div>
+        <div data-action="align" data-arg="centerH">Căn giữa ngang</div>
+        <div data-action="align" data-arg="right">Căn phải trang</div>
+        <div data-action="align" data-arg="top">Căn trên</div>
+        <div data-action="align" data-arg="centerV">Căn giữa dọc</div>
+        <div data-action="align" data-arg="bottom">Căn dưới</div>
+        <hr>
+        <div data-action="fitWidth">Khung vừa chiều rộng lề</div>
+    </div>
+    <div class="menu-pop" id="menu-type" data-menu-pop>
+        <div data-action="addText">Khung chữ mới <span class="k">T</span></div>
+        <div data-action="createParaStyle">Tạo Paragraph Style từ khung đang chọn</div>
+        <div data-action="createCharStyle">Tạo Character Style</div>
+        <div data-action="makeToc">Tạo Mục lục từ tiêu đề</div>
+        <hr>
+        <div data-action="aiWrite">✨ AI viết nội dung vào khung</div>
+        <div data-action="aiRewrite">✨ AI viết lại đoạn đang chọn</div>
+        <div data-action="aiTranslate">✨ AI dịch khung chữ</div>
+    </div>
+    <div class="menu-pop" id="menu-layout" data-menu-pop>
+        <div data-action="addPage">Thêm trang <span class="k">Ctrl+↵</span></div>
+        <div data-action="dupPage">Nhân đôi trang</div>
+        <div data-action="delPage">Xóa trang</div>
+        <hr>
+        <div data-action="toggleGuides">Hiện/ẩn lề &amp; cột</div>
+        <div data-action="applyMargins">Đặt lề &amp; số cột…</div>
+        <div data-action="twoColumn">Chia nội dung 2 cột</div>
+        <hr>
+        <div data-action="zoomFit">Vừa màn hình <span class="k">Ctrl+0</span></div>
+        <div data-action="zoom100">100% <span class="k">Ctrl+1</span></div>
     </div>
 
     <div class="workspace">
-        <div class="pages-panel">
-            <div class="panel-title">Pages</div>
-            <div class="page-thumb active">
-                <div style="font-weight:bold; font-size:12px; margin-bottom:8px; color:#333;">1</div>
-                <div style="border-bottom:1px solid #ccc; margin-bottom:4px;"></div>
-                <div style="border-bottom:1px solid #ccc; margin-bottom:4px; width:80%;"></div>
-                <div style="border-bottom:1px solid #ccc; margin-bottom:4px; width:70%;"></div>
+        <div class="pages">
+            <div class="pt">Trang <span id="pgCount"></span></div>
+            <div id="pgList"></div>
+            <div class="btnrow"><button data-action="addPage">＋ Trang</button></div>
+            <div class="pt">Master Page</div>
+            <div class="row" style="flex-direction:column;align-items:stretch;gap:4px;">
+                <input type="text" id="mHeader" placeholder="Header (để trống = tắt)" style="background:#232325;border:1px solid #4a4a4d;color:#fff;padding:5px;border-radius:4px;font-size:11.5px;">
+                <input type="text" id="mFooter" placeholder="Footer" style="background:#232325;border:1px solid #4a4a4d;color:#fff;padding:5px;border-radius:4px;font-size:11.5px;">
             </div>
-            <div class="page-thumb">
-                <div style="font-weight:bold; font-size:12px; margin-bottom:8px; color:#333;">2</div>
-                <div style="border-bottom:1px solid #ccc; margin-bottom:4px; width:60%;"></div>
-                <div style="border-bottom:1px solid #ccc; margin-bottom:4px;"></div>
+            <div class="btnrow" style="margin-top:6px;"><button data-action="toggleNumbers" id="numBtn">Số trang: BẬT</button></div>
+            <div class="pt">Cỡ trang</div>
+            <select id="pageSize" style="width:100%;background:#232325;border:1px solid #4a4a4d;color:#fff;padding:5px;border-radius:4px;font-size:11.5px;">
+                <option value="595x842">A4 dọc (210×297mm)</option>
+                <option value="842x595">A4 ngang</option>
+                <option value="420x595">A5 dọc</option>
+                <option value="612x792">US Letter</option>
+                <option value="800x800">Vuông 800×800</option>
+                <option value="1080x1350">Bài đăng IG 4:5</option>
+                <option value="1080x1920">Story 9:16</option>
+            </select>
+        </div>
+
+        <div class="tools" id="toolBar"></div>
+
+        <div class="stage" id="stage">
+            <div id="page">
+                <div id="guides"></div>
+                <div id="frames"></div>
+                <div id="furniture" style="position:absolute;inset:0;pointer-events:none;"></div>
+                <div id="handles"></div>
             </div>
         </div>
 
-        <div class="spread-area">
-            <div class="page-spread">
-                <div class="page margin-guide">
-                    <h1 style="font-size:32pt; font-weight:700; color:#222; margin-bottom:24px; line-height:1.2;">Bìa tạp chí</h1>
-                    <p style="font-size:12pt; line-height:1.6; color:#444; margin-bottom:20px;">Đây là trình dàn trang chuyên nghiệp giống Adobe InDesign, dùng để làm báo chí, tạp chí, sách, brochure, poster...</p>
-                    <p style="font-size:10pt; line-height:1.5; color:#666;">Hỗ trợ master pages, paragraph styles, character styles, text wrap, xuất PDF chuẩn in ấn.</p>
-                    <div style="width:100%; height:200px; background:#f0f0f0; margin-top:30px; display:flex; align-items:center; justify-content:center; color:#999; border-radius:4px;">🖼️ Hình ảnh</div>
-                    <p style="font-size:9pt; color:#888; margin-top:20px; column-count:2; column-gap:20px; line-height:1.4;">Nội dung văn bản có thể tự động chia cột, tràn từ trang này sang trang khác, hỗ trợ hyphenation, kerning, tracking chuyên nghiệp cho ngành in ấn.</p>
-                </div>
+        <div class="right">
+            <div class="pt">Khung đang chọn <span id="selInfo" style="color:#666;text-transform:none;"></span></div>
+            <div class="g2">
+                <div class="row" style="margin:0;"><label>X</label><input type="number" id="pX" step="1"></div>
+                <div class="row" style="margin:0;"><label>Y</label><input type="number" id="pY" step="1"></div>
+                <div class="row" style="margin:0;"><label>W</label><input type="number" id="pW" step="1"></div>
+                <div class="row" style="margin:0;"><label>H</label><input type="number" id="pH" step="1"></div>
             </div>
-        </div>
+            <div class="row" style="margin-top:6px;"><label>Xoay °</label><input type="range" id="pRot" min="-180" max="180" value="0"><span id="pRotV" style="width:30px;text-align:right;font-family:monospace;">0</span></div>
+            <div class="row"><label>Opacity</label><input type="range" id="pOp" min="0" max="100" value="100"><span id="pOpV" style="width:30px;text-align:right;font-family:monospace;">100</span></div>
+            <div class="row"><label>Nền</label><input type="color" id="pFill" value="#ffffff"><label style="width:auto;">Viền</label><input type="color" id="pStroke" value="#000000"></div>
+            <div class="row"><label>Cỡ viền</label><input type="number" id="pStrokeW" min="0" max="20" step="1" value="0"><label style="width:auto;">Bo</label><input type="number" id="pRadius" min="0" max="100" step="1" value="0"></div>
 
-        <div class="right-panel">
-            <div class="prop-group">
-                <div class="prop-title">Paragraph Styles</div>
-                <div class="style-item" style="font-size:18px; font-weight:700;">Heading 1</div>
-                <div class="style-item" style="font-size:15px; font-weight:600;">Heading 2</div>
-                <div class="style-item" style="font-size:12pt;">Body Text</div>
-                <div class="style-item" style="font-size:10pt; color:#888;">Caption</div>
-                <div class="style-item" style="font-size:14pt; font-style:italic;">Pull Quote</div>
+            <div class="pt">Chữ</div>
+            <div class="row"><label>Font</label>
+                <select id="tFamily">
+                    <option>Segoe UI</option><option>Arial</option><option>Georgia</option><option>Times New Roman</option>
+                    <option>Courier New</option><option>Verdana</option><option>Impact</option><option>Trebuchet MS</option><option>Palatino Linotype</option>
+                </select>
             </div>
-            <div class="prop-group">
-                <div class="prop-title">Character Styles</div>
-                <div class="style-item char-style">Bold</div>
-                <div class="style-item char-style" style="font-style:italic;">Italic</div>
-                <div class="style-item char-style" style="color:#ff4081;">Hyperlink</div>
+            <div class="row"><label>Cỡ</label><input type="number" id="tSize" min="6" max="200" step="1" value="12"><label style="width:auto;">Dòng</label><input type="number" id="tLh" min="0.8" max="3" step="0.05" value="1.35"></div>
+            <div class="row"><label>Màu chữ</label><input type="color" id="tColor" value="#111111"><label style="width:auto;">Giãn</label><input type="number" id="tLs" step="0.1" value="0"></div>
+            <div class="g3" style="margin-bottom:6px;">
+                <button data-action="fmt" data-arg="bold" title="Đậm"><b>B</b></button>
+                <button data-action="fmt" data-arg="italic" title="Nghiêng"><i>I</i></button>
+                <button data-action="fmt" data-arg="underline" title="Gạch chân"><u>U</u></button>
+                <button data-action="alignText" data-arg="left" title="Căn trái">⬅</button>
+                <button data-action="alignText" data-arg="center" title="Giữa">↔</button>
+                <button data-action="alignText" data-arg="right" title="Căn phải">➡</button>
             </div>
-            <div class="prop-group">
-                <div class="prop-title">Pages</div>
-                <div style="font-size:12px; color:#aaa;">Số trang: 2<br>Kích thước: A4<br>Margins: 20mm<br>Bleed: 3mm</div>
+            <div class="g3" style="margin-bottom:6px;">
+                <button data-action="heading" data-arg="1">H1</button>
+                <button data-action="heading" data-arg="2">H2</button>
+                <button data-action="heading" data-arg="0">Body</button>
             </div>
-            <div class="prop-group">
-                <div class="prop-title">Xuất bản</div>
-                <button style="width:100%; padding:8px; background:#ff4081; border:none; color:white; border-radius:4px; cursor:pointer; font-weight:600;">Xuất PDF In ấn</button>
+
+            <div class="pt">Paragraph Styles</div>
+            <div id="paraStyles"></div>
+            <div class="pt">Character Styles</div>
+            <div id="charStyles"></div>
+
+            <div class="pt">Chèn</div>
+            <div class="g2">
+                <button class="tbtn" style="background:#232325;border-color:#4a4a4d;" data-action="addText">Khung chữ</button>
+                <button class="tbtn" style="background:#232325;border-color:#4a4a4d;" data-action="addImage">Ảnh…</button>
+                <button class="tbtn" style="background:#232325;border-color:#4a4a4d;" data-action="addShape" data-arg="rect">▭ Hộp</button>
+                <button class="tbtn" style="background:#232325;border-color:#4a4a4d;" data-action="addShape" data-arg="ellipse">◯ Tròn</button>
+                <button class="tbtn" style="background:#232325;border-color:#4a4a4d;" data-action="addShape" data-arg="line">─ Đường</button>
+                <button class="tbtn" style="background:#232325;border-color:#4a4a4d;" data-action="makeToc">Mục lục</button>
             </div>
         </div>
     </div>
 
     <div class="statusbar">
-        <span>Untitled.indd</span>
-        <span>A4 · 2 pages</span>
-        <span>100%</span>
-        <span style="margin-left:auto;">Dàn trang sách/báo/tạp chí giống InDesign, AI có thể tự động tạo nội dung</span>
+        <span id="stPage">Trang 1/1</span>
+        <span id="stWords">0 từ</span>
+        <span id="stFrames">0 khung</span>
+        <span id="stSize">595 × 842 pt</span>
+        <span id="stZoom">100%</span>
+        <span data-status-text>Sẵn sàng</span>
     </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="indesign.js"></script>
 </body>
 </html>

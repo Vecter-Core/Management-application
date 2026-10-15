@@ -2,193 +2,329 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xLight - Chỉnh sửa ảnh nhiếp ảnh</title>
+    <title>xLight — Xử lý ảnh nhiếp ảnh</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        :root { --lr-blue: #0071bc; --lr-dark: #121212; --lr-mid: #1f1f1f; --lr-light: #2a2a2a; --text: #e0e0e0; }
-        body { font-family:"Segoe UI", sans-serif; background:var(--lr-dark); color:var(--text); height:100vh; display:flex; flex-direction:column; }
-        .topbar { height:40px; background:linear-gradient(90deg, #0071bc, #005a9c); display:flex; align-items:center; padding:0 12px; gap:8px; font-size:13px; font-weight:500; color:white; }
-        .module-tabs { display:flex; gap:0; margin-left:20px; }
-        .module-tab { padding:8px 16px; background:rgba(0,0,0,0.2); cursor:pointer; border-right:1px solid rgba(255,255,255,0.1); }
-        .module-tab.active { background:rgba(255,255,255,0.1); }
-        
+        :root { --lr-blue:#0071bc; --lr-dark:#121212; --lr-mid:#1f1f1f; --lr-light:#2a2a2a; --text:#e0e0e0; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--lr-dark); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+        .topbar { height:40px; background:linear-gradient(90deg,#0071bc,#005a9c); display:flex; align-items:center; padding:0 12px; gap:8px; font-size:13px; font-weight:500; color:#fff; flex-shrink:0; }
+        .module-tabs { display:flex; margin-left:14px; }
+        .module-tab { padding:8px 13px; background:rgba(0,0,0,.2); cursor:pointer; border-right:1px solid rgba(255,255,255,.1); font-size:12px; }
+        .module-tab:hover { background:rgba(255,255,255,.12); }
+        .module-tab.active { background:rgba(255,255,255,.22); font-weight:700; }
+        .tbtn { padding:5px 11px; background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.25); color:#fff; border-radius:5px; cursor:pointer; font-size:12px; }
+        .tbtn:hover { background:rgba(255,255,255,.18); }
         .workspace { flex:1; display:flex; overflow:hidden; }
-        /* Left - Filmstrip */
-        .filmstrip { width:220px; background:var(--lr-mid); border-right:1px solid #333; display:flex; flex-direction:column; }
-        .presets-panel { padding:12px; border-bottom:1px solid #333; overflow-y:auto; flex:1; }
-        .panel-title { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:8px; font-weight:600; letter-spacing:0.5px; }
-        .preset-group { margin-bottom:10px; }
-        .preset-group-title { font-size:12px; color:#aaa; padding:4px 0; cursor:pointer; display:flex; justify-content:space-between; }
-        .preset-item { font-size:12px; padding:5px 8px; border-radius:4px; cursor:pointer; color:#ccc; margin-left:8px; }
-        .preset-item:hover { background:var(--lr-blue); color:white; }
-        
-        .filmstrip-thumbs { height:120px; background:#0a0a0a; border-top:1px solid #333; padding:8px; display:flex; gap:6px; overflow-x:auto; }
-        .thumb { width:80px; height:90px; background:linear-gradient(135deg, #444, #222); border-radius:4px; flex-shrink:0; position:relative; cursor:pointer; border:2px solid transparent; }
+        .module { flex:1; display:none; overflow:hidden; }
+        .module.active { display:flex; }
+
+        /* filmstrip + presets */
+        .left-col { width:224px; background:var(--lr-mid); border-right:1px solid #333; display:flex; flex-direction:column; flex-shrink:0; }
+        .presets-panel { padding:10px; border-bottom:1px solid #333; overflow-y:auto; flex:1; }
+        .panel-title { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:7px; font-weight:700; letter-spacing:.5px; }
+        .preset-group { margin-bottom:8px; }
+        .preset-group-title { font-size:12px; color:#bbb; padding:4px 0; cursor:pointer; display:flex; justify-content:space-between; }
+        .preset-item { font-size:12px; padding:5px 8px; border-radius:4px; cursor:pointer; color:#ccc; margin-left:6px; }
+        .preset-item:hover { background:var(--lr-blue); color:#fff; }
+        .preset-item.on { background:rgba(0,113,188,.45); color:#fff; }
+        .filmstrip-thumbs { height:112px; background:#0a0a0a; border-top:1px solid #333; padding:8px; display:flex; gap:6px; overflow-x:auto; align-items:center; flex-shrink:0; }
+        .thumb { width:76px; height:88px; background:#222; border-radius:4px; flex-shrink:0; cursor:pointer; border:2px solid transparent; position:relative; background-size:cover; background-position:center; }
         .thumb.active { border-color:var(--lr-blue); }
-        .thumb.selected { border-color:white; }
-        
-        /* Center - Preview */
-        .preview-area { flex:1; background:#0a0a0a; display:flex; align-items:center; justify-content:center; position:relative; }
-        .preview-image { width:80%; height:80%; background:linear-gradient(135deg, #2c3e50, #4a6fa5); border-radius:4px; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-        .preview-image::after { content:"📷 Photo Preview"; color:rgba(255,255,255,0.3); font-size:18px; }
-        .compare-handle { position:absolute; top:0; bottom:0; width:2px; background:white; left:50%; cursor:ew-resize; }
-        .compare-handle::before { content:"⟷"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; color:black; padding:4px; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:12px; }
-        
-        .tool-strip { position:absolute; bottom:20px; background:rgba(0,0,0,0.7); border-radius:24px; padding:8px; display:flex; gap:4px; }
-        .tool-strip-btn { width:36px; height:36px; border-radius:50%; border:none; background:transparent; color:white; cursor:pointer; font-size:16px; }
-        .tool-strip-btn:hover { background:rgba(255,255,255,0.1); }
-        
-        /* Right - Adjustments */
-        .adjustments-panel { width:300px; background:var(--lr-mid); border-left:1px solid #333; padding:12px; overflow-y:auto; }
-        .adjust-section { margin-bottom:16px; }
-        .adjust-section-title { font-size:13px; font-weight:600; color:white; margin-bottom:10px; padding-bottom:4px; border-bottom:1px solid #333; }
-        
-        .slider-row { margin-bottom:10px; }
-        .slider-row-header { display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:3px; }
-        .slider-value { color:var(--lr-blue); font-family:monospace; }
-        input[type=range] { width:100%; accent-color:var(--lr-blue); }
-        
-        .histogram { height:80px; background:#1a1a1a; border-radius:4px; margin-bottom:12px; position:relative; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 100'%3E%3Cpath d='M0,100 L20,80 L40,70 L60,85 L80,60 L100,40 L120,50 L140,30 L160,45 L180,25 L200,55 L220,70 L240,60 L256,80 L256,100 Z' fill='rgba(0,113,188,0.5)'/%3E%3C/svg%3E"); background-size:cover; }
-        
-        .hsl-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
-        .hsl-btn { padding:6px; border-radius:4px; border:none; color:white; font-size:10px; cursor:pointer; }
-        .hsl-btn:nth-child(1) { background:#ef4444; } .hsl-btn:nth-child(2) { background:#f59e0b; } .hsl-btn:nth-child(3) { background:#eab308; }
-        .hsl-btn:nth-child(4) { background:#22c55e; } .hsl-btn:nth-child(5) { background:#06b6d4; } .hsl-btn:nth-child(6) { background:#3b82f6; }
-        .hsl-btn:nth-child(7) { background:#8b5cf6; } .hsl-btn:nth-child(8) { background:#ec4899; }
-        
-        .statusbar { height:22px; background:var(--lr-blue); color:white; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; }
+        .thumb .rate { position:absolute; bottom:2px; left:3px; font-size:9px; color:#ffd166; }
+        .thumb .del { position:absolute; top:1px; right:2px; font-size:10px; color:#fff; background:rgba(0,0,0,.5); border-radius:3px; cursor:pointer; padding:0 3px; display:none; }
+        .thumb:hover .del { display:block; }
+        .thumb-empty { color:#666; font-size:11px; padding:8px; }
+
+        /* preview */
+        .preview-area { flex:1; background:#0a0a0a; display:flex; flex-direction:column; position:relative; min-width:0; }
+        .preview-wrap { flex:1; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:12px; }
+        #viewCanvas { max-width:100%; max-height:100%; box-shadow:0 6px 30px rgba(0,0,0,.7); cursor:crosshair; }
+        .compare-handle { position:absolute; top:0; bottom:0; width:2px; background:#fff; left:50%; cursor:ew-resize; z-index:5; display:none; }
+        .compare-handle.on { display:block; }
+        .compare-handle::before { content:"⟷"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; color:#000; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+        .tool-strip { display:flex; gap:4px; padding:8px; background:#181818; border-top:1px solid #2c2c2c; justify-content:center; flex-wrap:wrap; flex-shrink:0; }
+        .tool-strip-btn { min-width:36px; height:34px; padding:0 9px; border-radius:6px; border:1px solid transparent; background:transparent; color:#ddd; cursor:pointer; font-size:14px; }
+        .tool-strip-btn:hover { background:rgba(255,255,255,.1); }
+        .tool-strip-btn.on { background:rgba(0,113,188,.35); border-color:var(--lr-blue); color:#fff; }
+
+        /* right adjustments */
+        .adjust-col { width:300px; background:var(--lr-mid); border-left:1px solid #333; padding:10px; overflow-y:auto; flex-shrink:0; }
+        .histogram { height:78px; background:#141414; border-radius:4px; margin-bottom:10px; position:relative; overflow:hidden; }
+        #histCanvas { width:100%; height:100%; display:block; }
+        .adjust-section { margin-bottom:14px; }
+        .adjust-section-title { font-size:12.5px; font-weight:700; color:#fff; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }
+        .adjust-section-title button { background:#1a1a1a; border:1px solid #3a3a3a; color:#aaa; border-radius:4px; font-size:10px; padding:2px 7px; cursor:pointer; }
+        .slider-row { margin-bottom:7px; }
+        .slider-row-header { display:flex; justify-content:space-between; font-size:11.5px; color:#aaa; margin-bottom:2px; }
+        .slider-value { color:#5cb8ff; font-family:monospace; }
+        input[type=range] { width:100%; accent-color:var(--lr-blue); height:16px; }
+        .hsl-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-bottom:8px; }
+        .hsl-btn { padding:6px 2px; border-radius:4px; border:2px solid transparent; color:#fff; font-size:10px; cursor:pointer; }
+        .hsl-btn.on { border-color:#fff; }
+        .hsl-panel { display:none; background:#181818; padding:8px; border-radius:5px; }
+        .hsl-panel.on { display:block; }
+        .btn-row { display:flex; gap:6px; margin-top:8px; }
+        .btn-row button { flex:1; padding:8px; background:#1a1a1a; border:1px solid #3a3a3a; color:#ccc; border-radius:5px; cursor:pointer; font-size:12px; }
+        .btn-row button:hover { border-color:var(--lr-blue); color:#fff; }
+        .btn-row button.primary { background:var(--lr-blue); border-color:var(--lr-blue); color:#fff; font-weight:700; }
+        label.chk { display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:7px; cursor:pointer; }
+        .statusbar { height:22px; background:var(--lr-blue); color:#fff; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+
+        /* các module khác */
+        .lib-grid { flex:1; overflow:auto; padding:16px; display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; align-content:start; }
+        .lib-card { background:#1c1c1c; border:1px solid #333; border-radius:8px; overflow:hidden; cursor:pointer; }
+        .lib-card.active { border-color:var(--lr-blue); box-shadow:0 0 0 2px rgba(0,113,188,.4); }
+        .lib-card .img { height:120px; background:#0d0d0d center/cover no-repeat; }
+        .lib-card .meta { padding:8px; font-size:11.5px; }
+        .lib-card .meta b { display:block; color:#eee; font-size:12px; margin-bottom:3px; word-break:break-all; }
+        .drop-hint { border:2px dashed #3a3a3a; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#777; font-size:13px; min-height:120px; text-align:center; padding:20px; }
+        .simple-panel { flex:1; overflow:auto; padding:18px; }
+        .card { background:#1c1c1c; border:1px solid #333; border-radius:10px; padding:14px; margin-bottom:14px; }
+        .card h3 { font-size:14px; margin-bottom:8px; color:#fff; }
+        .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; font-size:12.5px; }
+        .row input[type=text], .row input[type=number], .row select { background:#141414; border:1px solid #3a3a3a; color:#eee; padding:6px 9px; border-radius:5px; font-size:12px; }
+        #slideStage { flex:1; background:#000; display:flex; align-items:center; justify-content:center; position:relative; }
+        #slideImg { max-width:96%; max-height:96%; transition:opacity .4s; }
+        .book-page { background:#fff; color:#111; width:520px; min-height:360px; margin:0 auto 16px; padding:22px; box-shadow:0 6px 22px rgba(0,0,0,.5); }
+        .book-page img { max-width:100%; border-radius:4px; }
+        .print-sheet { background:#fff; color:#111; padding:16px; display:grid; gap:10px; }
+        .print-sheet img { width:100%; display:block; }
+        @media print { body>*:not(#printArea){display:none !important} #printArea{display:block !important} }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <span>📸 xLight CC 2026</span>
-        <div class="module-tabs">
-            <div class="module-tab">Library</div>
-            <div class="module-tab active">Develop</div>
-            <div class="module-tab">Map</div>
-            <div class="module-tab">Book</div>
-            <div class="module-tab">Slideshow</div>
-            <div class="module-tab">Print</div>
-            <div class="module-tab">Web</div>
+        <span>📸 xLight</span>
+        <div class="module-tabs" id="moduleTabs">
+            <div class="module-tab" data-module="library">Library</div>
+            <div class="module-tab active" data-module="develop">Develop</div>
+            <div class="module-tab" data-module="map">Map</div>
+            <div class="module-tab" data-module="book">Book</div>
+            <div class="module-tab" data-module="slideshow">Slideshow</div>
+            <div class="module-tab" data-module="print">Print</div>
+            <div class="module-tab" data-module="web">Web</div>
         </div>
-        <div style="margin-left:auto;">✨ AI Masking | Auto Edit</div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="tbtn" data-action="importPhotos">📥 Nhập ảnh</button>
+            <button class="tbtn" data-action="aiAuto">✨ AI Auto Edit</button>
+            <button class="tbtn" data-action="exportPhoto">⬇ Xuất ảnh</button>
+        </div>
     </div>
 
     <div class="workspace">
-        <div class="filmstrip">
-            <div class="presets-panel">
-                <div class="panel-title">Presets</div>
-                <div class="preset-group">
-                    <div class="preset-group-title">Color <span>▼</span></div>
-                    <div class="preset-item">Color Pop</div>
-                    <div class="preset-item">Vintage Film</div>
-                    <div class="preset-item">Warm Golden</div>
-                    <div class="preset-item">Cool Blue</div>
-                    <div class="preset-item">Cinematic</div>
+        <!-- ============ DEVELOP ============ -->
+        <div class="module active" id="mod-develop">
+            <div class="left-col">
+                <div class="presets-panel">
+                    <div class="panel-title">Presets</div>
+                    <div class="preset-group">
+                        <div class="preset-group-title" data-action="toggleGroup" data-arg="g-color">Color <span>▼</span></div>
+                        <div id="g-color">
+                            <div class="preset-item" data-action="preset" data-arg="original">Gốc (không chỉnh)</div>
+                            <div class="preset-item" data-action="preset" data-arg="colorpop">Color Pop</div>
+                            <div class="preset-item" data-action="preset" data-arg="vintage">Vintage Film</div>
+                            <div class="preset-item" data-action="preset" data-arg="golden">Warm Golden</div>
+                            <div class="preset-item" data-action="preset" data-arg="coolblue">Cool Blue</div>
+                            <div class="preset-item" data-action="preset" data-arg="cinematic">Cinematic</div>
+                        </div>
+                    </div>
+                    <div class="preset-group">
+                        <div class="preset-group-title" data-action="toggleGroup" data-arg="g-bw">Black &amp; White <span>▼</span></div>
+                        <div id="g-bw">
+                            <div class="preset-item" data-action="preset" data-arg="bwcontrast">B&amp;W Contrast</div>
+                            <div class="preset-item" data-action="preset" data-arg="bwsoft">B&amp;W Soft</div>
+                            <div class="preset-item" data-action="preset" data-arg="bwhighkey">B&amp;W High Key</div>
+                        </div>
+                    </div>
+                    <div class="preset-group">
+                        <div class="preset-group-title" data-action="toggleGroup" data-arg="g-curve">Curve <span>▼</span></div>
+                        <div id="g-curve">
+                            <div class="preset-item" data-action="preset" data-arg="mcontrast">Medium Contrast</div>
+                            <div class="preset-item" data-action="preset" data-arg="scontrast">Strong Contrast</div>
+                            <div class="preset-item" data-action="preset" data-arg="flat">Flat</div>
+                        </div>
+                    </div>
+                    <div class="preset-group">
+                        <div class="preset-group-title">✨ AI Presets <span></span></div>
+                        <div>
+                            <div class="preset-item" data-action="aiPreset" data-arg="enhance">AI Enhance</div>
+                            <div class="preset-item" data-action="aiPreset" data-arg="portrait">AI Portrait</div>
+                            <div class="preset-item" data-action="aiPreset" data-arg="landscape">AI Landscape</div>
+                            <div class="preset-item" data-action="aiPreset" data-arg="skinned">AI Skin Smooth</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="preset-group">
-                    <div class="preset-group-title">Black & White <span>▼</span></div>
-                    <div class="preset-item">B&W Contrast</div>
-                    <div class="preset-item">B&W Soft</div>
-                    <div class="preset-item">B&W High Key</div>
+                <div class="filmstrip-thumbs" id="filmstrip"><div class="thumb-empty">Chưa có ảnh — bấm 📥 Nhập ảnh</div></div>
+            </div>
+
+            <div class="preview-area">
+                <div class="preview-wrap" id="previewWrap">
+                    <canvas id="viewCanvas" width="900" height="600"></canvas>
+                    <div class="compare-handle" id="compareHandle"></div>
                 </div>
-                <div class="preset-group">
-                    <div class="preset-group-title">Curve <span>▼</span></div>
-                    <div class="preset-item">Medium Contrast</div>
-                    <div class="preset-item">Strong Contrast</div>
-                    <div class="preset-item">Flat</div>
-                </div>
-                <div class="preset-group">
-                    <div class="preset-group-title">✨ AI Presets <span>▼</span></div>
-                    <div class="preset-item">AI Enhance</div>
-                    <div class="preset-item">AI Portrait</div>
-                    <div class="preset-item">AI Landscape</div>
-                    <div class="preset-item">AI Skin Smooth</div>
+                <div class="tool-strip">
+                    <button class="tool-strip-btn" data-action="tool" data-arg="crop" title="Cắt ảnh">✂️</button>
+                    <button class="tool-strip-btn" data-action="tool" data-arg="straighten" title="Xoay thẳng">⬜</button>
+                    <button class="tool-strip-btn" data-action="tool" data-arg="brush" title="Cọ tăng sáng cục bộ">🖌️</button>
+                    <button class="tool-strip-btn" data-action="tool" data-arg="spot" title="Xóa vết bẩn (clone)">🧹</button>
+                    <button class="tool-strip-btn" data-action="tool" data-arg="zoom" title="Zoom 100%/vừa">🔍</button>
+                    <button class="tool-strip-btn" data-action="compare" title="So sánh trước/sau">👁️</button>
+                    <button class="tool-strip-btn" data-action="tool" data-arg="aimask" title="AI Mask chủ thể" style="color:#5cb8ff;">✨ AI Mask</button>
+                    <button class="tool-strip-btn" data-action="resetAll" title="Đặt lại tất cả">↺</button>
                 </div>
             </div>
-            <div class="filmstrip-thumbs">
-                <div class="thumb active"></div>
-                <div class="thumb"></div>
-                <div class="thumb selected"></div>
-                <div class="thumb"></div>
-                <div class="thumb"></div>
-                <div class="thumb"></div>
+
+            <div class="adjust-col">
+                <div class="histogram"><canvas id="histCanvas" width="280" height="78"></canvas></div>
+
+                <div class="adjust-section">
+                    <div class="adjust-section-title">Basic <button data-action="autoTone">Auto</button></div>
+                    <div id="basicSliders"></div>
+                </div>
+
+                <div class="adjust-section">
+                    <div class="adjust-section-title">White Balance</div>
+                    <div class="row" style="margin-bottom:6px;">
+                        <select id="wbPreset" style="flex:1;background:#141414;border:1px solid #3a3a3a;color:#eee;padding:5px;border-radius:5px;font-size:12px;">
+                            <option value="5500">As Shot (5500K)</option><option value="3200">Tungsten (3200K)</option>
+                            <option value="4200">Fluorescent (4200K)</option><option value="5000">Cloudy (5000K)</option>
+                            <option value="6500">Daylight (6500K)</option><option value="8000">Shade (8000K)</option>
+                        </select>
+                    </div>
+                    <div id="wbSliders"></div>
+                </div>
+
+                <div class="adjust-section">
+                    <div class="adjust-section-title">HSL / Color</div>
+                    <div class="hsl-grid" id="hslGrid"></div>
+                    <div class="hsl-panel" id="hslPanel"></div>
+                </div>
+
+                <div class="adjust-section">
+                    <div class="adjust-section-title">Detail</div>
+                    <div id="detailSliders"></div>
+                </div>
+
+                <div class="adjust-section">
+                    <div class="adjust-section-title">Effects / Lens</div>
+                    <div id="effectSliders"></div>
+                    <label class="chk"><input type="checkbox" id="chkProfile" checked> Bật Profile Corrections (giảm méo)</label>
+                    <label class="chk"><input type="checkbox" id="chkCA"> Remove Chromatic Aberration</label>
+                </div>
+
+                <div class="btn-row">
+                    <button data-action="resetAll">↺ Reset</button>
+                    <button data-action="exportPhoto" class="primary">⬇ Xuất ảnh</button>
+                </div>
             </div>
         </div>
 
-        <div class="preview-area">
-            <div class="preview-image">
-                <div class="compare-handle"></div>
-            </div>
-            <div class="tool-strip">
-                <button class="tool-strip-btn">✂️</button>
-                <button class="tool-strip-btn">⬜</button>
-                <button class="tool-strip-btn">🖌️</button>
-                <button class="tool-strip-btn">🔍</button>
-                <button class="tool-strip-btn">🧹</button>
-                <button class="tool-strip-btn">👁️</button>
-                <button class="tool-strip-btn" style="color:var(--lr-blue); background:rgba(0,113,188,0.2);">✨ AI Mask</button>
+        <!-- ============ LIBRARY ============ -->
+        <div class="module" id="mod-library">
+            <div class="lib-grid" id="libGrid"></div>
+        </div>
+
+        <!-- ============ MAP ============ -->
+        <div class="module" id="mod-map">
+            <div class="simple-panel">
+                <div class="card">
+                    <h3>🗺️ Gắn tọa độ cho ảnh đang chọn</h3>
+                    <div class="row">
+                        <label>Vĩ độ <input type="number" id="mapLat" step="0.0001" value="21.0285" style="width:120px;"></label>
+                        <label>Kinh độ <input type="number" id="mapLon" step="0.0001" value="105.8542" style="width:120px;"></label>
+                        <button class="tbtn" data-action="mapSave">💾 Lưu tọa độ</button>
+                        <button class="tbtn" data-action="mapUseGps">📍 Dùng vị trí máy (GPS trình duyệt)</button>
+                    </div>
+                    <div class="row" style="color:#999;">Ảnh đang chọn: <b id="mapCurrent">—</b></div>
+                </div>
+                <div class="card">
+                    <h3>Bản đồ các ảnh đã gắn tọa độ</h3>
+                    <canvas id="mapCanvas" width="900" height="420" style="width:100%;background:#0d1b26;border-radius:8px;"></canvas>
+                    <div id="mapList" style="margin-top:8px;font-size:12px;color:#bbb;"></div>
+                </div>
             </div>
         </div>
 
-        <div class="adjustments-panel">
-            <div class="histogram"></div>
-            
-            <div class="adjust-section">
-                <div class="adjust-section-title">Basic</div>
-                <div class="slider-row"><div class="slider-row-header"><span>Exposure</span><span class="slider-value">+0.30</span></div><input type="range" min="-100" max="100" value="30"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Contrast</span><span class="slider-value">+15</span></div><input type="range" min="-100" max="100" value="15"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Highlights</span><span class="slider-value">-25</span></div><input type="range" min="-100" max="100" value="-25"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Shadows</span><span class="slider-value">+35</span></div><input type="range" min="-100" max="100" value="35"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Whites</span><span class="slider-value">+10</span></div><input type="range" min="-100" max="100" value="10"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Blacks</span><span class="slider-value">-5</span></div><input type="range" min="-100" max="100" value="-5"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Texture</span><span class="slider-value">+20</span></div><input type="range" min="-100" max="100" value="20"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Clarity</span><span class="slider-value">+15</span></div><input type="range" min="-100" max="100" value="15"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Dehaze</span><span class="slider-value">+5</span></div><input type="range" min="-100" max="100" value="5"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Vibrance</span><span class="slider-value">+25</span></div><input type="range" min="-100" max="100" value="25"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Saturation</span><span class="slider-value">+5</span></div><input type="range" min="-100" max="100" value="5"></div>
-                <button style="width:100%; padding:8px; margin-top:8px; background:#1a1a1a; border:1px solid #333; color:#aaa; border-radius:4px; cursor:pointer;">Auto</button>
+        <!-- ============ BOOK ============ -->
+        <div class="module" id="mod-book">
+            <div class="simple-panel">
+                <div class="card">
+                    <h3>📖 Tạo sách ảnh</h3>
+                    <div class="row">
+                        <button class="tbtn" data-action="bookAddPage">＋ Thêm trang</button>
+                        <button class="tbtn" data-action="bookAutoFill">✨ Tự xếp tất cả ảnh</button>
+                        <button class="tbtn" data-action="bookPrint">🖨️ In / xuất PDF</button>
+                        <button class="tbtn" data-action="bookClear">🗑 Xóa hết trang</button>
+                    </div>
+                    <div class="row" style="color:#999;">Mỗi trang có 1 ảnh + chú thích, bấm ảnh để đổi, bấm chữ để sửa.</div>
+                </div>
+                <div id="bookPages"></div>
             </div>
+        </div>
 
-            <div class="adjust-section">
-                <div class="adjust-section-title">White Balance</div>
-                <div class="slider-row"><div class="slider-row-header"><span>Temp</span><span class="slider-value">5500K</span></div><input type="range" min="2000" max="10000" value="5500"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Tint</span><span class="slider-value">+5</span></div><input type="range" min="-100" max="100" value="5"></div>
-            </div>
-
-            <div class="adjust-section">
-                <div class="adjust-section-title">HSL / Color</div>
-                <div class="hsl-grid">
-                    <button class="hsl-btn">Red</button>
-                    <button class="hsl-btn">Orange</button>
-                    <button class="hsl-btn">Yellow</button>
-                    <button class="hsl-btn">Green</button>
-                    <button class="hsl-btn">Aqua</button>
-                    <button class="hsl-btn">Blue</button>
-                    <button class="hsl-btn">Purple</button>
-                    <button class="hsl-btn">Magenta</button>
+        <!-- ============ SLIDESHOW ============ -->
+        <div class="module" id="mod-slideshow">
+            <div style="flex:1;display:flex;flex-direction:column;">
+                <div id="slideStage"><div style="color:#666;">Chưa có ảnh</div></div>
+                <div class="tool-strip">
+                    <button class="tool-strip-btn" data-action="slidePrev">⏮</button>
+                    <button class="tool-strip-btn" data-action="slidePlay">▶ Phát</button>
+                    <button class="tool-strip-btn" data-action="slideNext">⏭</button>
+                    <span style="align-self:center;color:#aaa;font-size:12px;padding:0 10px;">Giây/ảnh</span>
+                    <input type="range" id="slideInterval" min="1" max="10" value="3" style="width:120px;align-self:center;">
+                    <span id="slideCount" style="align-self:center;color:#aaa;font-size:12px;">0 / 0</span>
                 </div>
             </div>
+        </div>
 
-            <div class="adjust-section">
-                <div class="adjust-section-title">Detail</div>
-                <div class="slider-row"><div class="slider-row-header"><span>Sharpening</span><span class="slider-value">40</span></div><input type="range" min="0" max="150" value="40"></div>
-                <div class="slider-row"><div class="slider-row-header"><span>Noise Reduction</span><span class="slider-value">25</span></div><input type="range" min="0" max="100" value="25"></div>
+        <!-- ============ PRINT ============ -->
+        <div class="module" id="mod-print">
+            <div class="simple-panel">
+                <div class="card">
+                    <h3>🖨️ Bố cục in</h3>
+                    <div class="row">
+                        <label>Khổ giấy
+                            <select id="printSize"><option value="a4">A4</option><option value="letter">Letter</option><option value="a5">A5</option></select>
+                        </label>
+                        <label>Số cột <input type="number" id="printCols" value="2" min="1" max="4" style="width:60px;"></label>
+                        <label>Lề (mm) <input type="number" id="printMargin" value="10" min="0" max="40" style="width:70px;"></label>
+                        <label class="chk" style="margin:0;"><input type="checkbox" id="printCaption" checked> In chú thích</label>
+                        <button class="tbtn" data-action="printBuild">🔨 Dựng trang in</button>
+                        <button class="tbtn" data-action="printGo">🖨️ In / Lưu PDF</button>
+                    </div>
+                </div>
+                <div id="printArea" style="display:none;"></div>
+                <div id="printPreview"></div>
             </div>
+        </div>
 
-            <div class="adjust-section">
-                <div class="adjust-section-title">Lens Corrections</div>
-                <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:8px; cursor:pointer;"><input type="checkbox" checked> Enable Profile Corrections</label>
-                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;"><input type="checkbox"> Remove Chromatic Aberration</label>
+        <!-- ============ WEB ============ -->
+        <div class="module" id="mod-web">
+            <div class="simple-panel">
+                <div class="card">
+                    <h3>🌐 Xuất gallery web</h3>
+                    <div class="row">
+                        <label>Tiêu đề <input type="text" id="webTitle" value="Bộ ảnh của tôi" style="width:220px;"></label>
+                        <label>Màu nền <input type="color" id="webBg" value="#111111"></label>
+                        <label>Cột <input type="number" id="webCols" value="3" min="1" max="6" style="width:60px;"></label>
+                        <button class="tbtn" data-action="webPreview">👁 Xem trước</button>
+                        <button class="tbtn" data-action="webExport">⬇ Tải file HTML</button>
+                    </div>
+                </div>
+                <div id="webPreviewBox"></div>
             </div>
         </div>
     </div>
 
     <div class="statusbar">
-        <span>DSC_0001.RAW</span>
-        <span>ISO 400 | 50mm | f/1.8 | 1/250s</span>
-        <span>24MP · 6000×4000</span>
-        <span style="margin-left:auto;">AI tự động chỉnh màu, sửa sáng, mask chủ thể khi bạn yêu cầu trong Chat</span>
+        <span id="stFile">Chưa có ảnh</span>
+        <span id="stMeta">—</span>
+        <span id="stZoom">Vừa khung</span>
+        <span style="margin-left:auto;" data-status-text>Sẵn sàng</span>
     </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="lightroom.js"></script>
 </body>
 </html>

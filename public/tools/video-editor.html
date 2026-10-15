@@ -3,236 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>xCut - Trình chỉnh sửa video</title>
+    <title>xCut Pro — Dựng video</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        :root {
-            --bg-darkest: #1a1a1a;
-            --bg-dark: #262626;
-            --bg-mid: #343434;
-            --bg-light: #464646;
-            --border: #555;
-            --text: #e8e8e8;
-            --text-dim: #999;
-            --accent: #ea77ff;
-            --accent2: #0078d4;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-darkest); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        .topbar { height: 40px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 4px; font-size: 13px; }
-        .menu-item { padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-        .menu-item:hover { background: var(--accent2); }
-
-        .workspace { flex:1; display: flex; overflow: hidden; }
-
-        /* Left - Media bin */
-        .media-panel { width: 260px; background: var(--bg-dark); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .panel-title { padding: 10px; font-weight: 600; font-size: 13px; background: var(--bg-mid); border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-        .media-list { flex:1; padding: 8px; overflow-y: auto; }
-        .media-item { display: flex; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; align-items: center; margin-bottom: 4px; }
-        .media-item:hover { background: var(--bg-mid); }
-        .media-thumb { width: 60px; height: 40px; background: linear-gradient(135deg, #444, #222); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .media-info { flex:1; font-size: 12px; }
-        .media-name { font-weight: 500; margin-bottom: 2px; }
-        .meta { color: var(--text-dim); font-size: 11px; }
-
-        /* Center - Preview */
-        .preview-area { flex:1; display: flex; flex-direction: column; background: var(--bg-darkest); }
-        .preview-monitor { flex:1; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .preview-screen { background: black; width: 100%; max-width: 800px; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; border-radius: 6px; box-shadow: 0 0 30px rgba(0,0,0,0.8); position: relative; }
-        .preview-time { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; }
-
-        .playback-controls { height: 60px; background: var(--bg-dark); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 16px; padding: 0 20px; }
-        .ctrl-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; color: var(--text); font-size: 18px; cursor: pointer; display:flex; align-items:center; justify-content:center; }
-        .ctrl-btn:hover { background: var(--bg-mid); }
-        .ctrl-btn.play { width: 48px; height: 48px; background: var(--accent2); font-size: 20px; }
-        .ctrl-btn.play:hover { background: #1a8ae8; }
-        .time-display { font-family: monospace; font-size: 14px; color: var(--text-dim); }
-        .timeline-slider { flex: 1; max-width: 500px; }
-
-        /* Bottom - Timeline */
-        .timeline-panel { height: 280px; background: var(--bg-dark); border-top: 2px solid var(--border); display: flex; }
-        .timeline-tools { width: 48px; background: var(--bg-mid); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
-        .timeline-tool { width: 32px; height: 32px; border-radius: 4px; border: none; background: transparent; color: var(--text); font-size: 16px; cursor: pointer; }
-        .timeline-tool:hover { background: var(--bg-light); }
-        .timeline-tool.active { background: var(--accent2); color: white; }
-
-        .tracks-area { flex:1; display: flex; flex-direction: column; overflow-x: auto; }
-        .ruler { height: 30px; background: var(--bg-mid); border-bottom: 1px solid var(--border); position: relative; min-width: 1500px; }
-        .ruler-marks { position: absolute; inset: 0; }
-        .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); z-index: 10; pointer-events: none; }
-        
-        .tracks { flex:1; position: relative; min-width: 1500px; }
-        .track { height: 70px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; position: relative; }
-        .track-label { position: absolute; left: 0; top: 0; bottom: 0; width: 80px; background: var(--bg-mid); border-right: 1px solid var(--border); display: flex; align-items: center; padding: 0 8px; font-size: 12px; z-index: 2; }
-        .track-content { margin-left: 80px; flex: 1; height: 100%; position: relative; }
-        
-        .clip { position: absolute; top: 8px; bottom: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; padding: 0 12px; font-size: 11px; overflow: hidden; user-select: none; }
-        .clip.video { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
-        .clip.audio { background: linear-gradient(135deg, #059669, #047857); }
-        .clip.text { background: linear-gradient(135deg, #d97706, #b45309); }
-        .clip:hover { filter: brightness(1.1); }
-
-        .right-effects { width: 240px; background: var(--bg-dark); border-left: 1px solid var(--border); overflow-y: auto; }
-        .effect-item { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 13px; display:flex; align-items:center; gap:8px; }
-        .effect-item:hover { background: var(--bg-mid); }
-        .effect-icon { font-size: 18px; }
-
-        .statusbar { height: 24px; background: var(--accent2); color: white; font-size: 12px; display:flex; align-items:center; padding: 0 12px; gap:20px; }
+        :root { --bg-darkest:#161616; --bg-dark:#222; --bg-mid:#2f2f2f; --bg-light:#3d3d3d; --border:#4a4a4a; --text:#eaeaea; --dim:#9a9a9a; --accent:#ea77ff; --accent2:#0078d4; }
+        body { font-family:-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg-darkest); color:var(--text); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+        .topbar { height:42px; background:var(--bg-dark); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 10px; gap:4px; font-size:13px; flex-shrink:0; }
+        .menu-item { padding:6px 11px; border-radius:4px; cursor:pointer; }
+        .menu-item:hover { background:var(--accent2); color:#fff; }
+        .menu-pop { position:fixed; display:none; min-width:210px; background:#2c2c2c; border:1px solid #4a4a4a; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.6); z-index:999; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--accent2); color:#fff; }
+        .menu-pop span.k { opacity:.55; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #444; margin:4px 2px; }
+        .tbtn { padding:6px 12px; background:var(--bg-mid); border:1px solid var(--border); color:var(--text); border-radius:5px; cursor:pointer; font-size:12.5px; font-family:inherit; }
+        .tbtn:hover { background:var(--bg-light); }
+        .tbtn.primary { background:var(--accent2); border-color:var(--accent2); color:#fff; }
+        .tbtn.pink { background:linear-gradient(135deg,#a21caf,#ea77ff); border:none; color:#fff; font-weight:600; }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .media-panel { width:246px; background:var(--bg-dark); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+        .panel-title { padding:9px 10px; font-weight:700; font-size:12.5px; background:var(--bg-mid); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+        .media-list { flex:1; padding:8px; overflow-y:auto; }
+        .media-item { display:flex; gap:9px; padding:7px; border-radius:6px; cursor:pointer; align-items:center; margin-bottom:4px; border:1px solid transparent; }
+        .media-item:hover { background:var(--bg-mid); }
+        .media-item.sel { border-color:var(--accent2); background:rgba(0,120,212,.15); }
+        .media-thumb { width:58px; height:40px; background:#111; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:19px; overflow:hidden; flex-shrink:0; }
+        .media-thumb video, .media-thumb img { width:100%; height:100%; object-fit:cover; }
+        .media-info { flex:1; font-size:12px; min-width:0; }
+        .media-name { font-weight:600; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .meta { color:var(--dim); font-size:11px; }
+        .media-del { background:none; border:none; color:#c88; cursor:pointer; font-size:13px; }
+        #importBtn { margin-top:12px; padding:16px; border:2px dashed var(--border); border-radius:8px; text-align:center; color:var(--dim); font-size:12px; cursor:pointer; }
+        #importBtn:hover { border-color:var(--accent2); color:#cfe6ff; }
+        .preview-area { flex:1; display:flex; flex-direction:column; background:var(--bg-darkest); min-width:0; }
+        .preview-monitor { flex:1; display:flex; align-items:center; justify-content:center; padding:14px; min-height:0; }
+        .preview-screen { background:#000; width:100%; max-width:820px; aspect-ratio:16/9; border-radius:6px; box-shadow:0 0 30px rgba(0,0,0,.8); position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .preview-screen.r916 { aspect-ratio:9/16; max-width:340px; max-height:100%; }
+        .preview-screen.r11 { aspect-ratio:1/1; max-width:520px; }
+        #pvVideo { width:100%; height:100%; object-fit:contain; background:#000; }
+        #pvOverlay { position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; }
+        #pvText { color:#fff; font-weight:800; text-shadow:0 3px 12px rgba(0,0,0,.85); text-align:center; padding:0 20px; display:none; }
+        .preview-time { position:absolute; top:8px; left:8px; background:rgba(0,0,0,.7); padding:3px 8px; border-radius:4px; font-family:monospace; font-size:12px; }
+        .preview-empty { text-align:center; color:#666; position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; }
+        .playback-controls { height:56px; background:var(--bg-dark); border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:10px; padding:0 14px; flex-shrink:0; flex-wrap:wrap; }
+        .ctrl-btn { width:38px; height:38px; border-radius:50%; border:none; background:transparent; color:var(--text); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .ctrl-btn:hover { background:var(--bg-mid); }
+        .ctrl-btn.play { width:46px; height:46px; background:var(--accent2); font-size:19px; }
+        .ctrl-btn.play:hover { background:#1a8ae8; }
+        .ctrl-btn.on { background:var(--accent); color:#000; }
+        .time-display { font-family:monospace; font-size:13px; color:var(--dim); }
+        .timeline-panel { height:250px; background:var(--bg-dark); border-top:2px solid var(--border); display:flex; flex-shrink:0; }
+        .timeline-tools { width:46px; background:var(--bg-mid); padding:7px 6px; display:flex; flex-direction:column; gap:4px; }
+        .timeline-tool { width:34px; height:32px; border-radius:4px; border:1px solid transparent; background:transparent; color:var(--text); font-size:15px; cursor:pointer; }
+        .timeline-tool:hover { background:var(--bg-light); }
+        .timeline-tool.on { background:var(--accent2); border-color:var(--accent2); color:#fff; }
+        .tracks-scroll { flex:1; overflow:auto; position:relative; }
+        .tracks-inner { position:relative; min-width:100%; }
+        .ruler { height:26px; background:var(--bg-mid); border-bottom:1px solid var(--border); position:relative; cursor:pointer; }
+        .ruler-mark { position:absolute; top:0; bottom:0; border-left:1px solid #555; font-size:9.5px; color:#999; padding:2px 4px; font-family:monospace; }
+        .track { height:52px; border-bottom:1px solid #333; position:relative; background:linear-gradient(90deg,rgba(255,255,255,.02),transparent); }
+        .track-head { position:absolute; left:0; top:0; bottom:0; width:66px; background:var(--bg-mid); border-right:1px solid var(--border); z-index:5; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; gap:2px; }
+        .track-head button { background:none; border:none; color:#bbb; cursor:pointer; font-size:10px; padding:0 3px; }
+        .track-head button.on { color:var(--accent); }
+        .track-lane { position:absolute; left:66px; right:0; top:0; bottom:0; }
+        .clip { position:absolute; top:5px; bottom:5px; border-radius:5px; cursor:grab; display:flex; align-items:center; padding:0 10px; font-size:11px; overflow:hidden; user-select:none; border:1px solid rgba(255,255,255,.18); }
+        .clip.video { background:linear-gradient(135deg,#2563eb,#1d4ed8); }
+        .clip.video2 { background:linear-gradient(135deg,#0891b2,#0e7490); }
+        .clip.audio { background:linear-gradient(135deg,#059669,#047857); }
+        .clip.text { background:linear-gradient(135deg,#d97706,#b45309); }
+        .clip.sel { outline:2px solid var(--accent); box-shadow:0 0 14px rgba(234,119,255,.45); }
+        .clip .handle { position:absolute; top:0; bottom:0; width:8px; background:rgba(255,255,255,.35); cursor:ew-resize; }
+        .clip .handle.l { left:0; border-radius:5px 0 0 5px; }
+        .clip .handle.r { right:0; border-radius:0 5px 5px 0; }
+        .clip span.nm { pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .playhead { position:absolute; top:0; bottom:0; width:2px; background:var(--accent); z-index:20; pointer-events:none; }
+        .playhead::before { content:""; position:absolute; top:0; left:-5px; border:6px solid transparent; border-top-color:var(--accent); }
+        .right-effects { width:224px; background:var(--bg-dark); border-left:1px solid var(--border); overflow-y:auto; flex-shrink:0; }
+        .effect-item { padding:8px 11px; border-bottom:1px solid #333; cursor:pointer; font-size:12.5px; display:flex; align-items:center; gap:8px; }
+        .effect-item:hover { background:var(--bg-mid); }
+        .effect-item.on { background:rgba(234,119,255,.18); color:#fff; }
+        .prop-row { padding:8px 11px; border-bottom:1px solid #333; font-size:12px; }
+        .prop-row label { display:block; color:var(--dim); margin-bottom:4px; }
+        .prop-row input[type=range] { width:100%; accent-color:var(--accent); }
+        .prop-row input[type=text], .prop-row select { width:100%; padding:5px 7px; background:#1b1b1b; border:1px solid var(--border); color:#fff; border-radius:4px; font-size:12px; }
+        .statusbar { height:24px; background:var(--accent2); color:#fff; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .progress { position:absolute; inset:0; background:rgba(0,0,0,.8); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; z-index:50; }
+        .progress .bar { width:60%; height:8px; background:#333; border-radius:4px; overflow:hidden; }
+        .progress .fill { height:100%; background:linear-gradient(90deg,#a21caf,#ea77ff); width:0%; transition:width .2s; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <div class="menu-item">Tệp</div>
-        <div class="menu-item">Chỉnh sửa</div>
-        <div class="menu-item">Clip</div>
-        <div class="menu-item">Sequence</div>
-        <div class="menu-item">Hiệu ứng</div>
-        <div class="menu-item">Âm thanh</div>
-        <div class="menu-item">Xuất</div>
-        <div style="margin-left:auto; display:flex; gap:8px;">
-            <button class="ctrl-btn" style="width:auto; padding:0 12px; border-radius:4px; font-size:13px; background:var(--accent); color:white;">✨ AI Auto Edit</button>
+        <div class="menu-item" data-menu="file">Tệp</div>
+        <div class="menu-item" data-menu="edit">Chỉnh sửa</div>
+        <div class="menu-item" data-menu="clip">Clip</div>
+        <div class="menu-item" data-menu="seq">Sequence</div>
+        <div class="menu-item" data-menu="fx">Hiệu ứng</div>
+        <div class="menu-item" data-menu="export">Xuất</div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="tbtn" data-action="importMedia">📥 Nhập media</button>
+            <button class="tbtn pink" data-action="aiAutoEdit">✨ AI Auto Edit</button>
+            <button class="tbtn primary" data-action="exportVideo">⬇ Xuất video</button>
         </div>
+    </div>
+
+    <div class="menu-pop" id="menu-file" data-menu-pop>
+        <div data-action="importMedia">Nhập media vào dự án… <span class="k">Ctrl+I</span></div>
+        <div data-action="addSample">Thêm clip mẫu (tự tạo)</div>
+        <hr>
+        <div data-action="saveProject">Lưu dự án (.json)</div>
+        <div data-action="loadProject">Mở dự án (.json)</div>
+    </div>
+    <div class="menu-pop" id="menu-edit" data-menu-pop>
+        <div data-action="undo">Hoàn tác <span class="k">Ctrl+Z</span></div>
+        <div data-action="redo">Làm lại <span class="k">Ctrl+Y</span></div>
+        <hr>
+        <div data-action="deleteClip">Xóa clip đang chọn <span class="k">Del</span></div>
+        <div data-action="rippleDelete">Xóa và dồn khoảng trống</div>
+        <div data-action="duplicateClip">Nhân đôi clip <span class="k">Ctrl+D</span></div>
+    </div>
+    <div class="menu-pop" id="menu-clip" data-menu-pop>
+        <div data-action="split">Cắt đôi tại playhead <span class="k">Ctrl+B</span></div>
+        <div data-action="setIn">Đặt điểm vào (In) <span class="k">I</span></div>
+        <div data-action="setOut">Đặt điểm ra (Out) <span class="k">O</span></div>
+        <div data-action="trimToPlayhead">Cắt clip tới playhead</div>
+        <hr>
+        <div data-action="speedUp">Tăng tốc ×2</div>
+        <div data-action="speedDown">Làm chậm ×0.5</div>
+        <div data-action="speedReset">Tốc độ gốc ×1</div>
+        <div data-action="reverseClip">Đảo ngược clip</div>
+    </div>
+    <div class="menu-pop" id="menu-seq" data-menu-pop>
+        <div data-action="aspect" data-arg="16:9">Tỉ lệ 16:9 (ngang)</div>
+        <div data-action="aspect" data-arg="9:16">Tỉ lệ 9:16 (TikTok/Reels)</div>
+        <div data-action="aspect" data-arg="1:1">Tỉ lệ 1:1 (vuông)</div>
+        <hr>
+        <div data-action="addTextClip">Thêm chữ tiêu đề</div>
+        <div data-action="addAudioTrack">Thêm track âm thanh</div>
+        <div data-action="clearTimeline">Xóa toàn bộ timeline</div>
+    </div>
+    <div class="menu-pop" id="menu-fx" data-menu-pop>
+        <div data-action="fadeToggle">Bật/tắt fade in-out giữa clip</div>
+        <div data-action="stabilizeNote">Chống rung (ghi chú)</div>
+        <div data-action="captions">🤖 Phụ đề tự động (AI)</div>
+        <div data-action="musicBed">🎵 Thêm nhạc nền từ file</div>
+    </div>
+    <div class="menu-pop" id="menu-export" data-menu-pop>
+        <div data-action="exportVideo">Xuất video (WebM) <span class="k">Ctrl+E</span></div>
+        <div data-action="exportFrame">Chụp khung hình hiện tại (PNG)</div>
+        <div data-action="exportGif">Xuất 3 giây thành ảnh động (WebM ngắn)</div>
+        <div data-action="exportEDL">Xuất danh sách cắt (EDL/JSON)</div>
     </div>
 
     <div class="workspace">
         <div class="media-panel">
-            <div class="panel-title">
-                <span>Thư viện dự án</span>
-                <button class="ctrl-btn" style="width:24px; height:24px; font-size:14px;">+</button>
-            </div>
-            <div class="media-list">
-                <div class="media-item">
-                    <div class="media-thumb">🎬</div>
-                    <div class="media-info">
-                        <div class="media-name">intro.mp4</div>
-                        <div class="meta">0:15 · 1920×1080</div>
-                    </div>
-                </div>
-                <div class="media-item">
-                    <div class="media-thumb">🎞️</div>
-                    <div class="media-info">
-                        <div class="media-name">main_footage.mp4</div>
-                        <div class="meta">3:24 · 1920×1080</div>
-                    </div>
-                </div>
-                <div class="media-item">
-                    <div class="media-thumb">🎵</div>
-                    <div class="media-info">
-                        <div class="media-name">background_music.mp3</div>
-                        <div class="meta">3:45 · 320kbps</div>
-                    </div>
-                </div>
-                <div class="media-item">
-                    <div class="media-thumb">🖼️</div>
-                    <div class="media-info">
-                        <div class="media-name">thumbnail.png</div>
-                        <div class="meta">1920×1080</div>
-                    </div>
-                </div>
-                <div style="margin-top:20px; padding:20px; border:2px dashed var(--border); border-radius:8px; text-align:center; color:var(--text-dim); font-size:12px; cursor:pointer;" id="importBtn">
-                    <div style="font-size:32px; margin-bottom:8px;">📥</div>
-                    Kéo thả file vào đây<br>hoặc click để nhập
-                </div>
-            </div>
+            <div class="panel-title"><span>Thư viện dự án</span><button class="tbtn" style="padding:2px 8px;" data-action="importMedia">＋</button></div>
+            <div class="media-list" id="mediaList"></div>
+            <div id="importBtn" data-action="importMedia">📥<br>Kéo thả file vào đây<br>hoặc click để nhập</div>
         </div>
 
         <div class="preview-area">
             <div class="preview-monitor">
-                <div class="preview-screen">
-                    <div style="text-align:center; color:var(--text-dim);">
-                        <div style="font-size:64px; margin-bottom:16px;">🎬</div>
-                        <div>Preview Video</div>
-                        <div style="font-size:12px; margin-top:8px;">Kéo clip vào timeline để bắt đầu chỉnh sửa</div>
-                    </div>
+                <div class="preview-screen" id="pvScreen">
+                    <video id="pvVideo" playsinline></video>
+                    <div id="pvOverlay"><div id="pvText"></div></div>
                     <div class="preview-time" id="previewTime">00:00:00.00</div>
+                    <div class="preview-empty" id="pvEmpty">
+                        <div style="font-size:56px;">🎬</div>
+                        <div>Chưa có clip nào</div>
+                        <div style="font-size:12px;">Nhập media ở bên trái, rồi bấm “＋ Thêm vào timeline”</div>
+                    </div>
+                    <div class="progress" id="exportProgress" style="display:none;">
+                        <div style="font-size:14px;" id="expLabel">Đang xuất video…</div>
+                        <div class="bar"><div class="fill" id="expFill"></div></div>
+                        <button class="tbtn" data-action="cancelExport">Hủy</button>
+                    </div>
                 </div>
             </div>
 
             <div class="playback-controls">
-                <button class="ctrl-btn">⏮</button>
-                <button class="ctrl-btn">⏪</button>
-                <button class="ctrl-btn play" id="playBtn">▶</button>
-                <button class="ctrl-btn">⏩</button>
-                <button class="ctrl-btn">⏭</button>
-                <div class="time-display"><span id="currentTime">00:00:00</span> / <span id="totalTime">00:03:30</span></div>
-                <input type="range" class="timeline-slider" min="0" max="210" value="0" id="seekBar">
-                <button class="ctrl-btn">🔊</button>
-                <button class="ctrl-btn">⛶</button>
+                <button class="ctrl-btn" data-action="goStart" title="Về đầu">⏮</button>
+                <button class="ctrl-btn" data-action="back5" title="Lùi 5s">⏪</button>
+                <button class="ctrl-btn play" data-action="playPause" id="playBtn" title="Phát/Dừng (Space)">▶</button>
+                <button class="ctrl-btn" data-action="fwd5" title="Tiến 5s">⏩</button>
+                <button class="ctrl-btn" data-action="goEnd" title="Về cuối">⏭</button>
+                <button class="ctrl-btn" data-action="loopToggle" id="loopBtn" title="Lặp">🔁</button>
+                <div class="time-display"><span id="currentTime">00:00:00.00</span> / <span id="totalTime">00:00:00.00</span></div>
+                <span style="font-size:12px;color:var(--dim);">Âm lượng</span>
+                <input type="range" id="masterVol" min="0" max="100" value="85" style="width:90px;accent-color:var(--accent);">
+                <span style="font-size:12px;color:var(--dim);">Tốc độ</span>
+                <select id="globalSpeed" style="background:#1b1b1b;color:#eee;border:1px solid var(--border);border-radius:4px;padding:4px;">
+                    <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option>
+                    <option value="1.5">1.5×</option><option value="2">2×</option><option value="4">4×</option>
+                </select>
             </div>
+        </div>
 
-            <div class="timeline-panel">
-                <div class="timeline-tools">
-                    <button class="timeline-tool active" title="Selection">↖</button>
-                    <button class="timeline-tool" title="Razor">✂️</button>
-                    <button class="timeline-tool" title="Hand">✋</button>
-                    <button class="timeline-tool" title="Type">T</button>
-                </div>
+        <div class="right-effects">
+            <div class="panel-title">Hiệu ứng màu</div>
+            <div id="gradeList"></div>
+            <div class="panel-title">Thông số clip</div>
+            <div id="clipProps"><div class="prop-row" style="color:var(--dim)">Chưa chọn clip nào</div></div>
+            <div class="panel-title">Xuất</div>
+            <div class="prop-row">
+                <label>Định dạng / chất lượng</label>
+                <select id="exportPreset">
+                    <option value="1280x720">720p (nhanh)</option>
+                    <option value="1920x1080" selected>1080p</option>
+                    <option value="1080x1920">1080×1920 (9:16)</option>
+                    <option value="640x640">640×640 (1:1)</option>
+                </select>
+            </div>
+            <div class="prop-row">
+                <button class="tbtn primary" style="width:100%;" data-action="exportVideo">⬇ Xuất video</button>
+                <button class="tbtn" style="width:100%;margin-top:6px;" data-action="exportFrame">📸 Chụp khung hình</button>
+            </div>
+        </div>
+    </div>
 
-                <div class="tracks-area">
-                    <div class="ruler">
-                        <div class="ruler-marks" id="rulerMarks"></div>
-                        <div class="playhead" id="playhead" style="left:0"></div>
-                    </div>
-                    <div class="tracks">
-                        <div class="track">
-                            <div class="track-label" style="background:#1e3a8a;">🎬 Video 2</div>
-                            <div class="track-content">
-                                <div class="clip video" style="left:0; width:120px;">intro.mp4</div>
-                                <div class="clip text" style="left:140px; width:180px;">Tiêu đề mở đầu</div>
-                            </div>
-                        </div>
-                        <div class="track">
-                            <div class="track-label" style="background:#1e40af;">🎬 Video 1</div>
-                            <div class="track-content">
-                                <div class="clip video" style="left:80px; width:600px;">main_footage.mp4</div>
-                                <div class="clip video" style="left:720px; width:280px;">B-roll</div>
-                            </div>
-                        </div>
-                        <div class="track">
-                            <div class="track-label" style="background:#065f46;">🎵 Audio 1</div>
-                            <div class="track-content">
-                                <div class="clip audio" style="left:0; width:1000px;">background_music.mp3</div>
-                            </div>
-                        </div>
-                        <div class="track">
-                            <div class="track-label" style="background:#064e3b;">🎤 Audio 2</div>
-                            <div class="track-content">
-                                <div class="clip audio" style="left:80px; width:400px; opacity:0.8;">Voiceover</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="right-effects">
-                    <div class="panel-title" style="border-top:1px solid var(--border);">Hiệu ứng</div>
-                    <div class="effect-item"><span class="effect-icon">🎨</span> Chuyển cảnh</div>
-                    <div class="effect-item"><span class="effect-icon">✨</span> Lớp phủ</div>
-                    <div class="effect-item"><span class="effect-icon">🔤</span> Văn bản</div>
-                    <div class="effect-item"><span class="effect-icon">🎚️</span> Điều chỉnh màu</div>
-                    <div class="effect-item"><span class="effect-icon">🔊</span> Âm thanh</div>
-                    <div class="effect-item"><span class="effect-icon">🤖</span> Auto Caption</div>
-                    <div class="effect-item"><span class="effect-icon">⚡</span> Tăng tốc/Chậm</div>
-                    <div class="panel-title" style="border-top:1px solid var(--border);">Xuất</div>
-                    <div style="padding:12px;">
-                        <button class="ctrl-btn" style="width:100%; height:40px; border-radius:6px; background:var(--accent2); color:white; font-size:14px; margin-bottom:8px;">Xuất MP4</button>
-                        <select style="width:100%; padding:8px; background:var(--bg-mid); color:var(--text); border:1px solid var(--border); border-radius:4px;">
-                            <option>1080p 60fps</option>
-                            <option>4K 30fps</option>
-                            <option>720p</option>
-                        </select>
-                    </div>
-                </div>
+    <div class="timeline-panel">
+        <div class="timeline-tools">
+            <button class="timeline-tool on" data-action="tool" data-arg="select" title="Chọn (V)">🖱</button>
+            <button class="timeline-tool" data-action="tool" data-arg="razor" title="Dao cắt (C)">🔪</button>
+            <button class="timeline-tool" data-action="tool" data-arg="hand" title="Kéo khung (H)">✋</button>
+            <hr style="border-color:#444;margin:2px 0;">
+            <button class="timeline-tool" data-action="split" title="Cắt tại playhead (Ctrl+B)">✂</button>
+            <button class="timeline-tool" data-action="deleteClip" title="Xóa clip">🗑</button>
+            <button class="timeline-tool" data-action="zoomTimeline" data-arg="in" title="Phóng to timeline">＋</button>
+            <button class="timeline-tool" data-action="zoomTimeline" data-arg="out" title="Thu nhỏ timeline">－</button>
+            <button class="timeline-tool" data-action="snapToggle" id="snapBtn" title="Bắt dính">🧲</button>
+        </div>
+        <div class="tracks-scroll" id="tracksScroll">
+            <div class="tracks-inner" id="tracksInner">
+                <div class="ruler" id="ruler"></div>
+                <div id="trackBox"></div>
+                <div class="playhead" id="playhead" style="left:66px;"></div>
             </div>
         </div>
     </div>
 
     <div class="statusbar">
-        <span>xCut Pro CC 2026</span>
-        <span>Dự án chưa lưu</span>
-        <span>Sequence: 1920×1080 30fps</span>
-        <span style="margin-left:auto;">✨ AI: Sẵn sàng tự động cắt ghép, thêm phụ đề, chỉnh màu khi bạn yêu cầu trong Chat</span>
+        <span>xCut Pro</span>
+        <span id="stProject">Dự án chưa lưu</span>
+        <span id="stSeq">Sequence 1920×1080 · 30fps · 16:9</span>
+        <span style="margin-left:auto;" data-status-text>Sẵn sàng</span>
     </div>
 
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
     <script src="video-editor.js"></script>
 </body>
 </html>

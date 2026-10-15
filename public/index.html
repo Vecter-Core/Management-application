@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rune - Local Control Center</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- Chart.js nạp từ thư mục vendor (offline, không phụ thuộc CDN) -->
+    <script src="vendor/chart.umd.js"></script>
 </head>
 <body>
     <div class="app">
@@ -401,17 +402,12 @@
             <div id="page-chat" class="page">
                 <div class="chat-wrapper">
                     <div class="chat-header">
-                        <h2>✨ AI Assistant - Điều khiển cả hệ thống</h2>
+                        <h2>✨ AI Assistant — kết nối thật</h2>
                         <div class="chat-options">
-                            <label class="checkbox-label"><input type="checkbox" id="enableWeb" checked> 🌐 Web</label>
-                            <label class="checkbox-label"><input type="checkbox" id="enableCli" checked> 💻 CLI</label>
-                            <label class="checkbox-label"><input type="checkbox" id="enableTools" checked> 🛠️ Tools</label>
-                            <select id="aiModel" class="select-input">
-                                <option value="local">Local (Rune)</option>
-                                <option value="gpt">GPT-4o</option>
-                                <option value="claude">Claude</option>
-                                <option value="gemini">Gemini</option>
-                            </select>
+                            <button class="key-state-chip" id="chatKeyChip" title="Bấm để mở trang Khóa">🔑 …</button>
+                            <label class="checkbox-label" title="Cho phép AI dùng công cụ web"><input type="checkbox" id="enableWeb" checked> 🌐 Web</label>
+                            <label class="checkbox-label" title="Cho phép AI chạy lệnh trên máy"><input type="checkbox" id="enableCli" checked> 💻 CLI</label>
+                            <label class="checkbox-label" title="Cho phép AI mở/điều khiển ứng dụng"><input type="checkbox" id="enableTools" checked> 🛠️ Tools</label>
                         </div>
                     </div>
 
@@ -433,17 +429,14 @@
                     <div class="chat-messages" id="chatMessages">
                         <div class="message assistant">
                             <div class="msg-content">
-                                <p>👋 Chào mừng đến với Rune AI! Tôi có thể:</p>
-                                <ul>
-                                    <li>✅ <strong>Mở và điều khiển toàn bộ ứng dụng Creative</strong>: "Mở sửa ảnh", "Cắt video cho tôi", "Soạn tài liệu"</li>
-                                    <li>✅ <strong>Truy cập web thật</strong> để lấy dữ liệu thị trường, tin tức</li>
-                                    <li>✅ <strong>Chạy lệnh CLI</strong> trực tiếp trên máy bạn</li>
-                                    <li>✅ <strong>Xem thông tin hệ thống</strong> CPU/GPU/RAM realtime</li>
-                                    <li>✅ <strong>Quản lý API keys</strong> cho bạn</li>
+                                <div>👋 Chào! Đây là <strong>Rune AI</strong>. Tôi nối <strong>thật</strong> tới nhà cung cấp AI bạn chọn (OpenAI / Claude / Gemini / Groq / DeepSeek / OpenRouter) và có thể tự gọi công cụ để làm việc trên máy bạn.</div>
+                                <ul class="md-ul">
+                                    <li>🔑 <strong>Bước 1:</strong> vào trang <strong>Khóa</strong> → nhập <strong>1 khóa AI duy nhất</strong> → bấm <em>Kiểm tra kết nối thật</em>.</li>
+                                    <li>🚀 <strong>Bước 2:</strong> nói việc cần làm: <em>“mở xPhoto rồi áp bộ lọc đen trắng”</em>, <em>“CPU đang bao nhiêu %?”</em>, <em>“chạy lệnh ls -la”</em>.</li>
+                                    <li>🧰 Tôi có <strong>18 công cụ</strong>: hệ thống, thị trường, mở &amp; điều khiển 12 app Creative, CLI, tính toán, bảo mật, automation, web…</li>
+                    <li>📴 <strong>Chưa có khóa?</strong> Tôi vẫn chạy được <em>chế độ offline</em> (điều khiển app + hệ thống), chỉ là không có hội thoại AI thật.</li>
                                 </ul>
-                                <p style="margin-top:10px; padding:10px; background:var(--bg-tertiary); border-radius:8px; font-size:13px;">
-                                    💡 Thử nói: <em>"Mở Photoshop cho tôi sửa ảnh"</em> hoặc <em>"Lấy giá VIC hôm nay"</em>
-                                </p>
+                                <div class="msg-actions" id="welcomeActions"></div>
                             </div>
                         </div>
                     </div>
@@ -452,24 +445,72 @@
                     <div id="cliOutput" class="cli-output hidden"></div>
 
                     <div class="chat-input-area">
-                        <textarea id="chatInput" placeholder="Nói với AI: mở app, chỉnh sửa ảnh/video, chạy lệnh, lấy dữ liệu..."></textarea>
-                        <button id="sendChat" class="btn-send">Gửi ➤</button>
+                        <textarea id="chatInput" placeholder="Nói với AI: mở app, chỉnh sửa ảnh/video, chạy lệnh, lấy dữ liệu… (Enter để gửi, Shift+Enter xuống dòng)"></textarea>
+                        <button id="sendChat" class="btn-send" title="Gửi (Enter)">Gửi ➤</button>
+                        <button id="stopChat" class="btn-send btn-stop hidden" title="Dừng trả lời">■ Dừng</button>
                     </div>
+                    <div class="chat-footnote" id="chatFootnote">Đang kiểm tra khóa AI…</div>
                 </div>
             </div>
 
-            <!-- Trang API Keys -->
+            <!-- Trang Khóa: MỘT nơi duy nhất nhập khóa AI + các khóa khác -->
             <div id="page-keys" class="page">
-                <div class="page-header"><h1>🔑 Quản lý API Keys</h1></div>
-                <p class="page-desc">Tất cả API key được lưu cục bộ trên máy bạn, C++ mã hóa trước khi ghi đĩa</p>
-                <div class="keys-grid" id="keysGrid">
-                    <div class="key-card"><div class="key-icon">🤖</div><div class="key-info"><div class="key-name">OpenAI</div><div class="key-desc">GPT, DALL-E, Whisper</div></div><input type="password" class="key-input" data-service="openai" placeholder="sk-..."><button class="btn-save-key" data-service="openai">Lưu</button></div>
-                    <div class="key-card"><div class="key-icon">🧠</div><div class="key-info"><div class="key-name">Anthropic</div><div class="key-desc">Claude models</div></div><input type="password" class="key-input" data-service="anthropic" placeholder="sk-ant-..."><button class="btn-save-key" data-service="anthropic">Lưu</button></div>
-                    <div class="key-card"><div class="key-icon">💎</div><div class="key-info"><div class="key-name">Google Gemini</div><div class="key-desc">Google AI</div></div><input type="password" class="key-input" data-service="gemini"><button class="btn-save-key" data-service="gemini">Lưu</button></div>
-                    <div class="key-card"><div class="key-icon">📈</div><div class="key-info"><div class="key-name">Alpha Vantage</div><div class="key-desc">Dữ liệu CK</div></div><input type="password" class="key-input" data-service="alpha"><button class="btn-save-key" data-service="alpha">Lưu</button></div>
-                    <div class="key-card"><div class="key-icon">🔍</div><div class="key-info"><div class="key-name">Tavily Search</div><div class="key-desc">Web search</div></div><input type="password" class="key-input" data-service="tavily"><button class="btn-save-key" data-service="tavily">Lưu</button></div>
-                    <div class="key-card"><div class="key-icon">🎨</div><div class="key-info"><div class="key-name">Stable Diffusion</div><div class="key-desc">Tạo ảnh</div></div><input type="password" class="key-input" data-service="sd"><button class="btn-save-key" data-service="sd">Lưu</button></div>
+                <div class="page-header">
+                    <div>
+                        <h1>🔑 Khóa</h1>
+                        <p class="page-desc">Chỉ <strong>một nơi duy nhất</strong> để nhập khóa AI và các khóa khác. Khóa nằm trên máy bạn (localStorage), chỉ được gửi thẳng tới nhà cung cấp AI mà bạn chọn.</p>
+                    </div>
+                    <div class="key-state-chip" id="keyStateChip">…</div>
                 </div>
+
+                <!-- (1) KHÓA AI — chỉ 1 bộ duy nhất -->
+                <section class="section key-section" id="aiKeySection">
+                    <h2 class="section-title">🤖 Khóa AI <span class="mini-tag">dùng cho AI Chat + mọi ứng dụng Creative</span></h2>
+                    <div class="key-form">
+                        <div class="key-field">
+                            <label for="aiProvider">Nhà cung cấp</label>
+                            <select id="aiProvider" class="select-input"></select>
+                        </div>
+                        <div class="key-field wide">
+                            <label for="aiKeyInput">Khóa API</label>
+                            <div class="key-input-wrap">
+                                <input type="password" id="aiKeyInput" class="key-input" placeholder="sk-..." autocomplete="off" spellcheck="false">
+                                <button class="key-eye" id="aiKeyToggle" title="Hiện/ẩn khóa">👁</button>
+                            </div>
+                        </div>
+                        <div class="key-field">
+                            <label for="aiModelSelect">Model</label>
+                            <select id="aiModelSelect" class="select-input"></select>
+                            <input type="text" id="aiModelCustom" class="key-input small" placeholder="hoặc gõ tên model khác…" autocomplete="off">
+                        </div>
+                        <div class="key-field">
+                            <label for="aiBaseUrl">Base URL <span class="dim">(tùy chọn)</span></label>
+                            <input type="text" id="aiBaseUrl" class="key-input" placeholder="để trống = dùng mặc định của nhà cung cấp" autocomplete="off">
+                        </div>
+                        <div class="key-field">
+                            <label for="aiTemp">Nhiệt độ: <span id="aiTempVal">0.7</span></label>
+                            <input type="range" id="aiTemp" min="0" max="1.5" step="0.1" value="0.7">
+                        </div>
+                    </div>
+                    <div class="key-actions">
+                        <button class="btn-primary" id="saveAiKeyBtn">💾 Lưu khóa AI</button>
+                        <button class="btn-secondary" id="testAiKeyBtn">🔌 Kiểm tra kết nối thật</button>
+                        <button class="btn-ghost" id="clearAiKeyBtn">🗑 Xóa khóa</button>
+                    </div>
+                    <div id="aiKeyResult" class="key-result hidden"></div>
+                    <p class="key-hint">💡 Chưa có khóa? Groq và Google Gemini có gói miễn phí — chọn nhà cung cấp, dán khóa, bấm <strong>Kiểm tra kết nối thật</strong> là dùng được ngay.</p>
+                </section>
+
+                <!-- (2) CÁC KHÓA KHÁC — cùng 1 trang, 1 danh sách -->
+                <section class="section key-section">
+                    <h2 class="section-title">🔐 Các khóa khác <span class="mini-tag">không bắt buộc</span></h2>
+                    <div id="otherKeysList" class="other-keys-list"></div>
+                    <div class="key-add-row">
+                        <input type="text" id="otherKeyName" class="key-input" placeholder="Tên dịch vụ (vd: elevenlabs)" autocomplete="off">
+                        <input type="password" id="otherKeyValue" class="key-input" placeholder="Khóa / URL endpoint" autocomplete="off">
+                        <button class="btn-secondary" id="addOtherKeyBtn">＋ Thêm khóa</button>
+                    </div>
+                </section>
             </div>
 
             <!-- Trang Creative Hub - Adobe style app launcher -->
@@ -604,41 +645,85 @@
             <div id="app-window" class="app-window hidden">
                 <div class="app-window-header">
                     <div class="app-window-title" id="appWindowTitle">Ứng dụng</div>
+                    <div class="app-window-status" id="appWindowStatus"></div>
                     <div class="app-window-controls">
-                        <button class="aw-btn" id="popoutApp">⇱</button>
-                        <button class="aw-btn" id="closeAppWindow">✕</button>
+                        <button class="aw-btn" id="minimizeAppWindow" title="Thu nhỏ / mở rộng cửa sổ app">—</button>
+                        <button class="aw-btn" id="reloadAppWindow" title="Tải lại ứng dụng">⟳</button>
+                        <button class="aw-btn" id="popoutApp" title="Mở cửa sổ riêng">⇱</button>
+                        <button class="aw-btn" id="closeAppWindow" title="Đóng (Esc)">✕</button>
                     </div>
                 </div>
                 <div class="app-window-body">
-                    <iframe id="appFrame" src="" frameborder="0"></iframe>
+                    <iframe id="appFrame" src="" frameborder="0" allow="clipboard-write; microphone; camera; fullscreen"></iframe>
                 </div>
             </div>
 
             <!-- Trang Cài đặt -->
             <div id="page-settings" class="page">
                 <div class="page-header"><h1>⚙️ Cài đặt</h1></div>
+
                 <div class="settings-section">
                     <h3>Giao diện</h3>
-                    <div class="setting-row"><label>Chủ đề</label><select class="select-input"><option>Tối</option><option>Sáng</option></select></div>
+                    <div class="setting-row">
+                        <label for="themeSelect">Chủ đề</label>
+                        <select id="themeSelect" class="select-input"><option value="dark">Tối</option><option value="light">Sáng</option></select>
+                    </div>
                     <div class="setting-row"><label>Màu chủ đạo</label>
-                        <div class="color-picker">
-                            <button class="color-option green active"></button>
-                            <button class="color-option blue"></button>
-                            <button class="color-option red"></button>
-                            <button class="color-option yellow"></button>
-                            <button class="color-option purple"></button>
-                            <button class="color-option adobe-pink"></button>
+                        <div class="color-picker" id="colorPicker">
+                            <button class="color-option green active" data-accent="green" title="Xanh lá"></button>
+                            <button class="color-option blue" data-accent="blue" title="Xanh dương"></button>
+                            <button class="color-option red" data-accent="red" title="Đỏ"></button>
+                            <button class="color-option yellow" data-accent="yellow" title="Vàng"></button>
+                            <button class="color-option purple" data-accent="purple" title="Tím"></button>
+                            <button class="color-option adobe-pink" data-accent="pink" title="Hồng"></button>
                         </div>
                     </div>
-                    <div class="setting-row"><label>Ngôn ngữ</label><select class="select-input"><option>Tiếng Việt</option><option>English</option></select></div>
+                    <div class="setting-row">
+                        <label>Hiệu ứng chuyển động</label>
+                        <label class="toggle"><input type="checkbox" id="motionToggle" checked><span class="toggle-slider"></span></label>
+                    </div>
                 </div>
+
+                <div class="settings-section">
+                    <h3>AI</h3>
+                    <div class="setting-row">
+                        <label for="aiLangSelect">Ngôn ngữ AI trả lời</label>
+                        <select id="aiLangSelect" class="select-input"><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
+                    </div>
+                    <div class="setting-row">
+                        <label for="aiMemoryToggle">Ghi nhớ hội thoại giữa các phiên</label>
+                        <label class="toggle"><input type="checkbox" id="aiMemoryToggle" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
+                        <label>Khóa AI</label>
+                        <button class="btn-secondary" id="goKeysFromSettings">🔑 Mở trang Khóa</button>
+                    </div>
+                    <div class="setting-row">
+                        <label>Chat</label>
+                        <button class="btn-ghost" id="clearChatHistory">🧹 Xóa lịch sử chat</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Backend C++ local</h3>
+                    <div class="info-row"><span>Trạng thái</span><span id="backendState">Đang kiểm tra…</span></div>
+                    <div class="info-row"><span>Chức năng</span><span>CPU/RAM thật · chạy lệnh CLI thật · lưu khóa xuống đĩa</span></div>
+                    <div class="setting-row">
+                        <label>Kết nối</label>
+                        <button class="btn-secondary" id="recheckBackend">🔄 Kiểm tra lại</button>
+                    </div>
+                </div>
+
                 <div class="settings-section">
                     <h3>Thông tin hệ thống</h3>
-                    <div class="info-row"><span>Phiên bản</span><span>Rune v2.0 4D Creative Edition</span></div>
-                    <div class="info-row"><span>Backend</span><span>C++20 Native</span></div>
+                    <div class="info-row"><span>Phiên bản</span><span>Rune v3.0 — Real Connection Edition</span></div>
+                    <div class="info-row"><span>Backend</span><span>C++20 Native (tùy chọn)</span></div>
                     <div class="info-row"><span>App wrapper</span><span>Rust Tauri</span></div>
-                    <div class="info-row"><span>Ứng dụng</span><span>12 ứng dụng Creative tích hợp</span></div>
-                    <div class="info-row"><span>Tự động hóa</span><span>Automation Engine built-in</span></div>
+                    <div class="info-row"><span>Ứng dụng Creative</span><span>12 app, tất cả nút đều hoạt động</span></div>
+                    <div class="setting-row">
+                        <label>Dữ liệu local</label>
+                        <button class="btn-ghost danger" id="wipeLocalData">🗑 Xóa toàn bộ dữ liệu local</button>
+                    </div>
                 </div>
             </div>
 
@@ -806,19 +891,14 @@
                 </section>
 
                 <section class="section">
-                    <h2 class="section-title">📋 Nhật ký hoạt động</h2>
-                    <div class="log-container">
-                        <div class="log-item success"><span class="log-time">10:42:05</span><span class="log-status">✅</span><span class="log-text">Đã xử lý ảnh chụp màn hình mới, thêm viền bóng</span></div>
-                        <div class="log-item"><span class="log-time">09:00:01</span><span class="log-status">📊</span><span class="log-text">Lấy dữ liệu VN-Index 1287.4 (-0.29%), gửi thông báo</span></div>
-                        <div class="log-item warn"><span class="log-time">08:15:32</span><span class="log-status">⚠️</span><span class="log-text">CPU 92°C, đã cảnh báo và đóng ứng dụng nền</span></div>
-                        <div class="log-item success"><span class="log-time">00:00:02</span><span class="log-status">📁</span><span class="log-text">Đã tự sắp xếp 142 file trong Downloads</span></div>
-                        <div class="log-item"><span class="log-time">22:10:45</span><span class="log-status">🎬</span><span class="log-text">Chuyển video recording.mp4 sang tỉ lệ 9:16 cho Shorts</span></div>
-                    </div>
+                    <h2 class="section-title">📋 Nhật ký hoạt động <span class="mini-tag">ghi realtime mọi việc Rune đã làm</span></h2>
+                    <div class="log-container" id="activityLog"></div>
                 </section>
             </div>
         </main>
     </div>
 
+    <script src="core.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -2,95 +2,229 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xPrototype - Thiết kế UI/UX XD</title>
+    <title>xPrototype — Thiết kế UI &amp; Prototype</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI", sans-serif; background:#2e2e2e; color:white; height:100vh; display:flex; flex-direction:column; }
-        .topbar { height:40px; background:#ff61f6; color:#220022; display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:600; gap:8px; }
-        .workspace { flex:1; display:flex; }
-        .canvas { flex:1; background:#1a1a1a; display:flex; align-items:center; justify-content:center; gap:40px; overflow:auto; padding:40px; }
-        .phone-frame { width:390px; height:844px; background:#000; border-radius:50px; padding:12px; box-shadow:0 20px 60px rgba(255,97,246,0.2); position:relative; }
-        .phone-screen { width:100%; height:100%; background:white; border-radius:40px; overflow:hidden; color:#222; }
-        .phone-notch { position:absolute; top:20px; left:50%; transform:translateX(-50%); width:120px; height:30px; background:#000; border-radius:0 0 20px 20px; z-index:10; }
-        .app-bar { background:linear-gradient(135deg, #ff61f6, #a855f7); color:white; padding:60px 20px 20px; }
-        .app-bar h2 { font-size:22px; font-weight:700; }
-        .card { margin:16px; padding:16px; background:#f5f5f5; border-radius:12px; }
-        .card-img { height:120px; background:linear-gradient(135deg, #667eea, #764ba2); border-radius:8px; margin-bottom:12px; }
-        
-        .right-props { width:260px; background:#3a3a3a; padding:12px; border-left:1px solid #2a2a2a; }
-        .comp-panel { padding:12px 0; border-bottom:1px solid #4a4a4a; }
-        .comp-item { padding:8px; background:#4a4a4a; border-radius:6px; margin-bottom:6px; font-size:12px; cursor:pointer; }
-        .comp-item:hover { background:#555; }
-        
-        .statusbar { height:22px; background:#ff61f6; color:#220022; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; font-weight:500; }
+        :root { --acc:#ff61f6; --bg:#202024; --bg2:#2a2a30; --bd:#3d3d45; --tx:#ededf2; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#ff61f6,#7b2ff7); color:#fff; display:flex; align-items:center; padding:0 10px; gap:6px; font-weight:700; flex-shrink:0; }
+        .menu-item { padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:500; }
+        .menu-item:hover { background:rgba(0,0,0,.22); }
+        .menu-pop { position:fixed; display:none; min-width:225px; background:#2a2a30; border:1px solid #4a4a52; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.6); z-index:999; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--acc); color:#20002a; }
+        .menu-pop span.k { opacity:.65; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #444; margin:4px 2px; }
+        .tbtn { padding:5px 11px; background:rgba(0,0,0,.25); border:1px solid rgba(0,0,0,.3); color:#fff; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .tbtn:hover { background:rgba(255,255,255,.25); }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .left { width:186px; background:var(--bg2); border-right:1px solid var(--bd); padding:8px; overflow-y:auto; flex-shrink:0; }
+        .tools { width:48px; background:#26262b; padding:6px 4px; display:flex; flex-direction:column; gap:3px; flex-shrink:0; border-right:1px solid var(--bd); }
+        .tb { width:40px; height:34px; border-radius:5px; border:1px solid transparent; background:transparent; color:#fff; font-size:15px; cursor:pointer; }
+        .tb:hover { background:#3a3a42; }
+        .tb.active { background:var(--acc); color:#20002a; }
+        .pt { font-size:10.5px; text-transform:uppercase; color:#9a9aa5; font-weight:700; margin:12px 0 6px; letter-spacing:.4px; }
+        .ab { background:#33333b; border:1px solid #44444d; border-radius:6px; padding:6px 8px; margin-bottom:5px; font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:6px; }
+        .ab:hover { border-color:var(--acc); }
+        .ab.on { background:linear-gradient(90deg,rgba(255,97,246,.28),rgba(123,47,247,.2)); border-color:var(--acc); }
+        .ab .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .ab .x { color:#d99; }
+        .lyr { padding:4px 7px; background:#33333b; border-radius:4px; margin-bottom:3px; font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer; }
+        .lyr.on { outline:1.6px solid var(--acc); }
+        .lyr .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .stage { flex:1; background:#191920; background-image:radial-gradient(circle at 50% 30%, #26262f, #15151b); overflow:auto; display:flex; align-items:center; justify-content:center; padding:30px; min-width:0; position:relative; }
+        #boardWrap { position:relative; transform-origin:center center; flex-shrink:0; }
+        #board { background:#fff; position:relative; box-shadow:0 12px 46px rgba(0,0,0,.65); overflow:hidden; color:#111; }
+        #boardWrap.phone #board { border-radius:34px; }
+        .dev-frame { position:absolute; inset:-12px; border:12px solid #111; border-radius:44px; pointer-events:none; display:none; }
+        #boardWrap.phone .dev-frame { display:block; }
+        .elem { position:absolute; cursor:move; overflow:hidden; }
+        .elem.sel { outline:1.6px solid var(--acc); outline-offset:0; }
+        .elem .lbl { width:100%; height:100%; display:flex; outline:none; }
+        .hd { position:absolute; width:9px; height:9px; background:#fff; border:1.6px solid var(--acc); border-radius:2px; z-index:5; }
+        .link-badge { position:absolute; right:2px; top:2px; background:#7b2ff7; color:#fff; font-size:9px; border-radius:8px; padding:1px 5px; pointer-events:none; }
+        .right { width:262px; background:var(--bg2); border-left:1px solid var(--bd); padding:10px; overflow-y:auto; flex-shrink:0; }
+        .row { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:11.5px; }
+        .row label { width:56px; color:#a3a3ad; flex-shrink:0; }
+        .row input[type=text], .row input[type=number], .row select, .row textarea { flex:1; min-width:0; background:#202026; border:1px solid #43434c; color:#fff; padding:4px 6px; border-radius:4px; font-size:11.5px; font-family:inherit; }
+        .row input[type=color] { width:34px; height:24px; border:1px solid #43434c; border-radius:4px; background:transparent; cursor:pointer; padding:0; }
+        .row input[type=range] { flex:1; accent-color:var(--acc); }
+        .g2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+        .g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+        .g3 button, .g4 button, .btnrow button { padding:6px 4px; background:#202026; border:1px solid #43434c; color:#fff; border-radius:5px; cursor:pointer; font-size:11px; font-family:inherit; }
+        .g3 button:hover, .g4 button:hover, .btnrow button:hover { border-color:var(--acc); }
+        .g3 button.on, .g4 button.on { background:var(--acc); border-color:var(--acc); color:#20002a; font-weight:700; }
+        .btnrow { display:flex; gap:4px; margin-bottom:6px; }
+        .btnrow button { flex:1; }
+        .sw { display:grid; grid-template-columns:repeat(9,1fr); gap:4px; }
+        .sw div { aspect-ratio:1; border-radius:4px; cursor:pointer; border:1.5px solid transparent; }
+        .sw div:hover { border-color:#fff; }
+        .statusbar { height:22px; background:#15151a; border-top:1px solid var(--bd); color:#a3a3ad; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .statusbar [data-status-text] { margin-left:auto; color:var(--acc); }
+        /* preview */
+        #preview { position:fixed; inset:0; background:rgba(8,8,12,.94); z-index:9000; display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+        #preview.show { display:flex; }
+        #pvStage { position:relative; box-shadow:0 20px 70px rgba(0,0,0,.8); background:#fff; overflow:hidden; transition:opacity .28s, transform .28s; }
+        #pvBar { display:flex; gap:8px; align-items:center; color:#fff; font-size:12.5px; }
+        #pvBar button { padding:6px 12px; border-radius:6px; border:1px solid #555; background:#26262e; color:#fff; cursor:pointer; font-family:inherit; font-size:12px; }
+        #pvBar button:hover { border-color:var(--acc); }
+        .pv-link { cursor:pointer; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <span>💜 xPrototype CC</span>
-        <span style="font-weight:400; margin-left:8px; opacity:0.8;">UI/UX Design · Wireframe · Prototype</span>
-        <div style="margin-left:auto; font-size:12px; font-weight:400;">▶️ Preview · ✨ AI Generate UI</div>
+        <span>◈ xPrototype</span>
+        <div style="display:flex; gap:2px; margin-left:8px;">
+            <div class="menu-item" data-menu="file">Tệp</div>
+            <div class="menu-item" data-menu="edit">Chỉnh sửa</div>
+            <div class="menu-item" data-menu="object">Đối tượng</div>
+            <div class="menu-item" data-menu="proto">Prototype</div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="tbtn" data-action="undo">↶</button>
+            <button class="tbtn" data-action="redo">↷</button>
+            <button class="tbtn" data-action="aiUi">✨ AI tạo UI</button>
+            <button class="tbtn" data-action="preview" style="background:#fff;color:#7b2ff7;">▶ Preview</button>
+        </div>
+    </div>
+
+    <div class="menu-pop" id="menu-file" data-menu-pop>
+        <div data-action="newProject">Dự án mới <span class="k">Ctrl+N</span></div>
+        <div data-action="openProject">Mở dự án (.json)</div>
+        <hr>
+        <div data-action="saveProject">Lưu dự án (.json) <span class="k">Ctrl+S</span></div>
+        <div data-action="exportPng">Xuất artboard PNG</div>
+        <div data-action="exportHtml">Xuất HTML demo</div>
+        <div data-action="importImage">Chèn ảnh vào artboard…</div>
+    </div>
+    <div class="menu-pop" id="menu-edit" data-menu-pop>
+        <div data-action="undo">Hoàn tác <span class="k">Ctrl+Z</span></div>
+        <div data-action="redo">Làm lại <span class="k">Ctrl+Y</span></div>
+        <hr>
+        <div data-action="duplicate">Nhân đôi <span class="k">Ctrl+D</span></div>
+        <div data-action="deleteElem">Xóa <span class="k">Del</span></div>
+        <div data-action="clearBoard">Xóa hết phần tử</div>
+    </div>
+    <div class="menu-pop" id="menu-object" data-menu-pop>
+        <div data-action="front">Đưa lên trước</div>
+        <div data-action="back">Đưa xuống sau</div>
+        <hr>
+        <div data-action="align" data-arg="left">Căn trái artboard</div>
+        <div data-action="align" data-arg="centerH">Căn giữa ngang</div>
+        <div data-action="align" data-arg="right">Căn phải artboard</div>
+        <div data-action="align" data-arg="top">Căn trên</div>
+        <div data-action="align" data-arg="centerV">Căn giữa dọc</div>
+        <div data-action="align" data-arg="bottom">Căn dưới</div>
+        <hr>
+        <div data-action="makeComponent">Biến thành nút bấm (button)</div>
+        <div data-action="addTemplate" data-arg="login">Mẫu: màn hình đăng nhập</div>
+        <div data-action="addTemplate" data-arg="home">Mẫu: trang chủ app</div>
+        <div data-action="addTemplate" data-arg="list">Mẫu: danh sách + thẻ</div>
+        <div data-action="addTemplate" data-arg="landing">Mẫu: landing page</div>
+    </div>
+    <div class="menu-pop" id="menu-proto" data-menu-pop>
+        <div data-action="preview">▶ Chạy prototype <span class="k">Ctrl+↵</span></div>
+        <div data-action="setLink">Gắn liên kết cho phần tử đang chọn…</div>
+        <div data-action="clearLink">Bỏ liên kết</div>
+        <div data-action="linkMap">Xem sơ đồ liên kết (flow)</div>
+        <hr>
+        <div data-action="deviceFrame">Bật/tắt khung thiết bị</div>
+        <div data-action="zoomFit">Vừa màn hình <span class="k">Ctrl+0</span></div>
+        <div data-action="zoom100">100% <span class="k">Ctrl+1</span></div>
     </div>
 
     <div class="workspace">
-        <div style="width:60px; background:#333; padding:8px; display:flex; flex-direction:column; gap:4px;">
-            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">🖱️</button>
-            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">▭</button>
-            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">T</button>
-            <button style="width:44px; height:44px; border:none; background:#444; border-radius:6px; color:white; font-size:18px; cursor:pointer;">🖼️</button>
+        <div class="left">
+            <div class="pt">Artboards <span id="abCount" style="color:#666;"></span></div>
+            <div id="abList"></div>
+            <div class="btnrow"><button data-action="addBoard">＋ Thêm</button><button data-action="dupBoard">⧉</button><button data-action="delBoard">🗑</button></div>
+            <select id="deviceSel" style="width:100%;background:#202026;border:1px solid #43434c;color:#fff;padding:5px;border-radius:5px;font-size:11.5px;margin-top:4px;">
+                <option value="393x852">iPhone 15 Pro · 393×852</option>
+                <option value="360x800">Android · 360×800</option>
+                <option value="820x1180">iPad · 820×1180</option>
+                <option value="1440x900">Desktop · 1440×900</option>
+                <option value="1280x800">Laptop · 1280×800</option>
+                <option value="320x320">Widget · 320×320</option>
+                <option value="1080x1920">Story · 1080×1920</option>
+                <option value="1200x628">Banner · 1200×628</option>
+            </select>
+            <div class="pt">Layers</div>
+            <div id="lyrList"></div>
         </div>
 
-        <div class="canvas">
-            <div class="phone-frame">
-                <div class="phone-notch"></div>
-                <div class="phone-screen">
-                    <div class="app-bar">
-                        <h2>Xin chào!</h2>
-                        <p style="opacity:0.9; margin-top:4px;">Khám phá thiết kế UI/UX</p>
-                    </div>
-                    <div class="card">
-                        <div class="card-img"></div>
-                        <div style="font-weight:600; margin-bottom:4px;">Tiêu đề card</div>
-                        <div style="font-size:12px; color:#666;">Mô tả ngắn gọn về nội dung card này</div>
-                    </div>
-                    <div style="padding:0 16px; display:flex; gap:8px;">
-                        <div style="flex:1; height:80px; background:#f0f0f0; border-radius:8px;"></div>
-                        <div style="flex:1; height:80px; background:#f0f0f0; border-radius:8px;"></div>
-                    </div>
-                </div>
-            </div>
-            <div style="width:800px; height:600px; background:white; border-radius:8px; color:#222; padding:40px;">
-                <h1 style="font-size:48px; font-weight:800; background:linear-gradient(90deg, #ff61f6, #a855f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Web Design</h1>
-                <p style="font-size:18px; color:#666; margin-top:16px; max-width:500px;">Thiết kế giao diện web, desktop, mobile với đầy đủ components, auto layout, prototype tương tác.</p>
-                <button style="margin-top:24px; padding:12px 32px; background:#ff61f6; color:white; border:none; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer;">Bắt đầu</button>
+        <div class="tools" id="toolBar"></div>
+
+        <div class="stage" id="stage">
+            <div id="boardWrap">
+                <div class="dev-frame"></div>
+                <div id="board"></div>
+                <div id="handles" style="position:absolute;inset:0;pointer-events:none;"></div>
             </div>
         </div>
 
-        <div class="right-props">
-            <div class="comp-panel">
-                <div style="font-size:11px; text-transform:uppercase; color:#999; margin-bottom:8px;">Components</div>
-                <div class="comp-item">🔘 Button</div>
-                <div class="comp-item">📝 Input field</div>
-                <div class="comp-item">🃏 Card</div>
-                <div class="comp-item">🧭 Navigation</div>
-                <div class="comp-item">📱 App Bar</div>
-                <div class="comp-item">🔔 Notification</div>
-                <div class="comp-item">✨ AI Generate</div>
+        <div class="right">
+            <div class="pt">Phần tử <span id="selInfo" style="color:#666;text-transform:none;"></span></div>
+            <div class="g2">
+                <div class="row" style="margin:0;"><label>X</label><input type="number" id="pX" step="1"></div>
+                <div class="row" style="margin:0;"><label>Y</label><input type="number" id="pY" step="1"></div>
+                <div class="row" style="margin:0;"><label>W</label><input type="number" id="pW" step="1"></div>
+                <div class="row" style="margin:0;"><label>H</label><input type="number" id="pH" step="1"></div>
             </div>
-            <div class="comp-panel">
-                <div style="font-size:11px; text-transform:uppercase; color:#999; margin-bottom:8px;">Layers</div>
-                <div class="comp-item">📱 Mobile Frame</div>
-                <div class="comp-item" style="margin-left:12px;">📱 App Bar</div>
-                <div class="comp-item" style="margin-left:12px;">📇 Card 1</div>
-                <div class="comp-item" style="margin-left:12px;">📐 Grid</div>
+            <div class="row" style="margin-top:6px;"><label>Nền</label><input type="color" id="pFill" value="#7b2ff7"><label style="width:auto;">Viền</label><input type="color" id="pStroke" value="#000000"></div>
+            <div class="row"><label>Viền px</label><input type="number" id="pStrokeW" min="0" max="20" value="0"><label style="width:auto;">Bo</label><input type="number" id="pRadius" min="0" max="200" value="8"></div>
+            <div class="row"><label>Opacity</label><input type="range" id="pOp" min="0" max="100" value="100"><span id="pOpV" style="width:26px;text-align:right;font-family:monospace;">100</span></div>
+            <div class="row"><label>Đổ bóng</label><select id="pShadow"><option value="">Không</option><option value="0 2px 8px rgba(0,0,0,.18)">Nhẹ</option><option value="0 8px 24px rgba(0,0,0,.28)">Vừa</option><option value="0 16px 40px rgba(0,0,0,.4)">Mạnh</option><option value="0 0 0 3px rgba(123,47,247,.4)">Vòng sáng</option></select></div>
+            <div class="btnrow"><button data-action="noFill">Bỏ nền</button><button data-action="rotateElem" data-arg="90">Xoay 90°</button></div>
+
+            <div class="pt">Màu nhanh</div>
+            <div class="sw" id="swatches"></div>
+
+            <div class="pt">Chữ</div>
+            <div class="row"><label>Nội dung</label><input type="text" id="tText" placeholder="nhập chữ…"></div>
+            <div class="row"><label>Cỡ</label><input type="number" id="tSize" min="6" max="120" value="14"><label style="width:auto;">Font</label>
+                <select id="tFamily"><option>Segoe UI</option><option>Arial</option><option>Georgia</option><option>Inter</option><option>Verdana</option><option>Courier New</option><option>Impact</option></select>
             </div>
+            <div class="row"><label>Màu chữ</label><input type="color" id="tColor" value="#111111"><label style="width:auto;">Đậm</label><select id="tWeight"><option value="400">Thường</option><option value="500">Vừa</option><option value="600">Nửa đậm</option><option value="700">Đậm</option><option value="800">Rất đậm</option></select></div>
+            <div class="g3">
+                <button data-action="alignText" data-arg="flex-start">⬅</button>
+                <button data-action="alignText" data-arg="center">↔</button>
+                <button data-action="alignText" data-arg="flex-end">➡</button>
+            </div>
+
+            <div class="pt">Prototype — tương tác</div>
+            <div class="row"><label>Khi bấm</label><select id="lTo"><option value="">— không làm gì —</option><option value="back">⬅ Quay lại</option></select></div>
+            <div class="row"><label>Hiệu ứng</label><select id="lTr"><option value="none">Không</option><option value="fade">Fade</option><option value="slide">Trượt ngang</option><option value="dissolve">Dissolve</option><option value="pop">Pop</option></select></div>
+            <div class="btnrow"><button data-action="preview">▶ Chạy thử</button><button data-action="linkMap">Sơ đồ flow</button></div>
+
+            <div class="pt">Artboard</div>
+            <div class="row"><label>Tên</label><input type="text" id="bName"></div>
+            <div class="row"><label>Nền</label><input type="color" id="bBg" value="#ffffff"><button class="tbtn" style="background:#202026;border-color:#43434c;padding:4px 8px;" data-action="transparentBg">Trong suốt</button></div>
         </div>
     </div>
 
     <div class="statusbar">
-        <span>Untitled.xd</span>
-        <span>iPhone 14 Pro · Desktop</span>
-        <span style="margin-left:auto;">Thiết kế UI/UX, prototype tương tác. AI có thể sinh giao diện tự động từ mô tả</span>
+        <span id="stBoard">Artboard 1</span>
+        <span id="stSize">393 × 852</span>
+        <span id="stElems">0 phần tử</span>
+        <span id="stLinks">0 liên kết</span>
+        <span id="stZoom">100%</span>
+        <span data-status-text>Sẵn sàng</span>
     </div>
+
+    <div id="preview">
+        <div id="pvStage"></div>
+        <div id="pvBar">
+            <button data-action="pvBack">⬅ Quay lại</button>
+            <span id="pvName">Artboard</span>
+            <button data-action="pvRestart">↺ Chạy lại</button>
+            <button data-action="pvClose">✕ Thoát (Esc)</button>
+        </div>
+    </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="xd.js"></script>
 </body>
 </html>

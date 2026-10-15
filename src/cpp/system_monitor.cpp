@@ -5,6 +5,7 @@
 #include <thread>
 #include <chrono>
 #include <sys/sysinfo.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 #include <cstring>
 
@@ -34,12 +35,15 @@ void SystemMonitor::read_cpu_name() {
             }
         }
     }
-    strncpy(info.gpu_name, "Detecting GPU...", sizeof(info.gpu_name) - 1);
+    strncpy(info.gpu_name, "Không có GPU rời (đồ họa tích hợp)", sizeof(info.gpu_name) - 1);
+    info.gpu_usage = 0;
+    info.gpu_temp = 0;
 }
 
 void SystemMonitor::read_gpu_info() {
     // Đọc thông tin GPU nếu có NVIDIA SMI hoặc AMD
-    FILE* pipe = popen("lspci | grep -E 'VGA|3D controller' | head -1", "r");
+    // 2>/dev/null: nhiều máy (container/WSL) không có lspci → không in rác ra log server
+    FILE* pipe = popen("lspci 2>/dev/null | grep -E 'VGA|3D controller' | head -1", "r");
     if (pipe) {
         char buf[256] = {0};
         if (fgets(buf, sizeof(buf), pipe)) {
@@ -69,15 +73,20 @@ void SystemMonitor::read_gpu_info() {
 
 void SystemMonitor::read_cpu_usage() {
     std::ifstream f("/proc/stat");
-    uint64_t user, nice, system, idle, iowait, irq, softirq;
-    f >> line >> user >> nice >> system >> idle >> iowait >> irq >> softirq;
+    if (!f) return;
+    std::string line;
+    uint64_t user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0;
+    f >> line >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
 
-    uint64_t total = user + nice + system + idle + iowait + irq + softirq;
+    uint64_t total = user + nice + system + idle + iowait + irq + softirq + steal;
     uint64_t total_diff = total - prev_total;
     uint64_t idle_diff = idle - prev_idle;
 
-    if (total_diff > 0) {
-        info.cpu_usage = (100.0 * (total_diff - idle_diff)) / total_diff;
+    if (prev_total > 0 && total_diff > 0) {
+        double usage = (100.0 * static_cast<double>(total_diff - idle_diff)) / static_cast<double>(total_diff);
+        if (usage < 0) usage = 0;
+        if (usage > 100) usage = 100;
+        info.cpu_usage = usage;
     }
 
     prev_total = total;
@@ -124,7 +133,8 @@ void SystemMonitor::read_disk_io() {
     ).count();
 
     double dt = (now - last_check_ms) / 1000.0;
-    if (dt > 0) {
+    // mẫu đầu tiên chưa có mốc so sánh → giữ 0, tránh số liệu sai
+    if (dt > 0 && last_check_ms > 0 && prev_disk_read > 0) {
         info.disk_read = ((read_sectors - prev_disk_read) * 512) / dt;
         info.disk_write = ((write_sectors - prev_disk_write) * 512) / dt;
     }
@@ -153,7 +163,7 @@ void SystemMonitor::read_network_io() {
         std::chrono::steady_clock::now().time_since_epoch()
     ).count();
     double dt = (now - last_check_ms) / 1000.0;
-    if (dt > 0) {
+    if (dt > 0 && last_check_ms > 0 && prev_net_down > 0) {
         info.net_download = (down - prev_net_down) / dt;
         info.net_upload = (up - prev_net_up) / dt;
     }
@@ -161,11 +171,22 @@ void SystemMonitor::read_network_io() {
     prev_net_up = up;
 }
 
+// % dung lượng ổ đĩa chứa thư mục hiện tại (trước đây disk_usage luôn = 0)
+void SystemMonitor::read_disk_space() {
+    struct statvfs st{};
+    if (statvfs("/", &st) == 0) {
+        uint64_t total = (uint64_t)st.f_blocks * st.f_frsize;
+        uint64_t avail = (uint64_t)st.f_bavail * st.f_frsize;
+        if (total > 0) info.disk_usage = 100.0 * (double)(total - avail) / (double)total;
+    }
+}
+
 void SystemMonitor::refresh() {
     std::lock_guard<std::mutex> lock(mtx);
     read_cpu_usage();
     read_memory_info();
     read_disk_io();
+    read_disk_space();
     read_network_io();
 
     last_check_ms = std::chrono::duration_cast<std::chrono::milliseconds>(

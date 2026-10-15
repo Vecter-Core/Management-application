@@ -2,49 +2,263 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xPDF - Xem & chỉnh sửa PDF</title>
+    <title>xPDF — Xem &amp; chú thích PDF</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI", sans-serif; background:#525659; height:100vh; display:flex; flex-direction:column; color:white; }
-        .toolbar { background:#323639; padding:8px 12px; display:flex; gap:8px; align-items:center; border-bottom:1px solid #1a1a1a; }
-        .tool-btn { padding:8px; background:transparent; border:none; color:#ccc; cursor:pointer; border-radius:4px; font-size:16px; }
-        .tool-btn:hover { background:#484c4f; color:white; }
-        .page-container { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; align-items:center; gap:16px; }
-        .pdf-page { width:816px; min-height:1056px; background:white; color:black; padding:80px; box-shadow:0 2px 10px rgba(0,0,0,0.5); font-family:serif; line-height:1.6; }
-        .page-num { color:#ccc; font-size:12px; }
+        :root { --acc:#ff4040; --bg:#1f1f24; --bg2:#2a2a30; --bd:#3d3d45; --tx:#ededf2; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#ff4040,#b30b00); color:#fff; display:flex; align-items:center; padding:0 10px; gap:6px; font-weight:700; flex-shrink:0; }
+        .menu-item { padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:500; }
+        .menu-item:hover { background:rgba(0,0,0,.25); }
+        .menu-pop { position:fixed; display:none; min-width:250px; background:#2a2a30; border:1px solid #4a4a52; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.6); z-index:999; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--acc); }
+        .menu-pop span.k { opacity:.65; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #444; margin:4px 2px; }
+        .tbtn { padding:5px 11px; background:rgba(0,0,0,.25); border:1px solid rgba(0,0,0,.3); color:#fff; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .tbtn:hover { background:rgba(255,255,255,.25); }
+        .toolbar { height:40px; background:var(--bg2); border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:5px; padding:0 8px; flex-shrink:0; overflow-x:auto; }
+        .tb2 { padding:4px 9px; background:#232328; border:1px solid #43434c; color:#e8e8ee; border-radius:5px; cursor:pointer; font-size:12px; white-space:nowrap; font-family:inherit; }
+        .tb2:hover { border-color:var(--acc); }
+        .tb2.on { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+        .tb2:disabled { opacity:.4; cursor:not-allowed; }
+        .sep { width:1px; height:22px; background:var(--bd); flex-shrink:0; }
+        #pageInput { width:44px; background:#232328; border:1px solid #43434c; color:#fff; padding:4px; border-radius:5px; text-align:center; font-size:12px; }
+        #searchInput { width:150px; background:#232328; border:1px solid #43434c; color:#fff; padding:4px 7px; border-radius:5px; font-size:12px; }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .left { width:158px; background:var(--bg2); border-right:1px solid var(--bd); display:flex; flex-direction:column; flex-shrink:0; }
+        .tabs { display:flex; border-bottom:1px solid var(--bd); }
+        .tabs button { flex:1; padding:7px 4px; background:#232328; border:none; color:#a3a3ad; cursor:pointer; font-size:11.5px; font-family:inherit; }
+        .tabs button.on { background:var(--bg2); color:var(--acc); font-weight:700; border-bottom:2px solid var(--acc); }
+        .panelBox { flex:1; overflow-y:auto; padding:8px; }
+        .thumb { background:#fff; margin-bottom:8px; cursor:pointer; border:2px solid transparent; border-radius:3px; position:relative; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+        .thumb.on { border-color:var(--acc); }
+        .thumb canvas { display:block; width:100%; height:auto; border-radius:2px; }
+        .thumb .n { position:absolute; bottom:-1px; right:2px; background:rgba(0,0,0,.6); color:#fff; font-size:9.5px; padding:1px 5px; border-radius:3px; }
+        .ann { background:#33333b; border-left:3px solid var(--acc); border-radius:4px; padding:6px 8px; margin-bottom:5px; font-size:11.5px; cursor:pointer; display:flex; gap:6px; align-items:flex-start; }
+        .ann:hover { background:#3c3c46; }
+        .ann .txt { flex:1; overflow:hidden; }
+        .ann .x { color:#e88; font-weight:700; }
+        .viewer { flex:1; overflow:auto; background:#15151a; padding:20px; display:flex; justify-content:center; align-items:flex-start; min-width:0; }
+        #pageBox { position:relative; box-shadow:0 8px 34px rgba(0,0,0,.65); background:#fff; flex-shrink:0; }
+        #pageCanvas { display:block; }
+        #overlay { position:absolute; inset:0; cursor:crosshair; }
+        .hl { position:absolute; background:rgba(255,235,59,.45); mix-blend-mode:multiply; border-radius:2px; }
+        .hl.c-red { background:rgba(255,64,64,.4); }
+        .hl.c-green { background:rgba(76,175,80,.4); }
+        .hl.c-blue { background:rgba(33,150,243,.38); }
+        .note { position:absolute; font-size:15px; line-height:1; cursor:pointer; filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+        .sign { position:absolute; pointer-events:none; }
+        .sign img { width:100%; height:100%; object-fit:contain; }
+        .svgdraw { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+        .empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#7a7a86; text-align:center; padding:26px; }
+        .empty b { color:var(--acc); font-size:16px; }
+        .empty button { padding:9px 16px; border-radius:8px; border:1px solid var(--bd); background:#2a2a30; color:#ededf2; cursor:pointer; font-family:inherit; font-size:12.5px; }
+        .right { width:268px; background:var(--bg2); border-left:1px solid var(--bd); padding:10px; overflow-y:auto; flex-shrink:0; }
+        .pt { font-size:10.5px; text-transform:uppercase; color:#9a9aa5; font-weight:700; margin:13px 0 6px; letter-spacing:.4px; }
+        .pt:first-child { margin-top:0; }
+        .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-bottom:6px; }
+        .g2 { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:6px; }
+        .g3 button, .g2 button { padding:7px 3px; background:#232328; border:1px solid #43434c; color:#e8e8ee; border-radius:5px; cursor:pointer; font-size:11px; font-family:inherit; }
+        .g3 button:hover, .g2 button:hover { border-color:var(--acc); }
+        .g3 button.on, .g2 button.on { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+        .row { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:11.5px; }
+        .row label { width:66px; color:#a3a3ad; flex-shrink:0; }
+        .row input[type=range] { flex:1; accent-color:var(--acc); }
+        .row input[type=color] { width:32px; height:24px; border:1px solid #43434c; border-radius:4px; background:transparent; padding:0; cursor:pointer; }
+        .row input[type=number], .row input[type=text], .row select, .row textarea { flex:1; min-width:0; background:#202026; border:1px solid #43434c; color:#fff; padding:4px 6px; border-radius:4px; font-size:11.5px; font-family:inherit; }
+        .row textarea { min-height:90px; resize:vertical; line-height:1.5; }
+        .row .v { width:38px; text-align:right; font-family:monospace; font-size:11px; color:var(--acc); }
+        .info { font-family:monospace; font-size:11px; color:#a3a3ad; line-height:1.7; background:#202026; border:1px solid var(--bd); border-radius:6px; padding:7px 9px; word-break:break-word; }
+        .info b { color:var(--acc); font-weight:600; }
+        #sigPad { width:100%; height:88px; background:#fff; border:1px solid #43434c; border-radius:6px; cursor:crosshair; touch-action:none; }
+        .statusbar { height:22px; background:#191920; border-top:1px solid var(--bd); color:#a3a3ad; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .statusbar [data-status-text] { margin-left:auto; color:var(--acc); }
+        .searchres { background:#33333b; border-radius:4px; padding:5px 7px; margin-bottom:4px; font-size:11px; cursor:pointer; }
+        .searchres:hover { background:#3f3f4a; }
+        .searchres b { color:var(--acc); }
+        @media print { body > *:not(#printArea) { display:none !important; } #printArea { display:block !important; } }
+        #printArea { display:none; }
     </style>
 </head>
 <body>
+    <div class="topbar">
+        <span>🖿 xPDF</span>
+        <div style="display:flex;gap:2px;margin-left:8px;">
+            <div class="menu-item" data-menu="file">Tệp</div>
+            <div class="menu-item" data-menu="view">Xem</div>
+            <div class="menu-item" data-menu="ann">Chú thích</div>
+            <div class="menu-item" data-menu="org">Tổ chức trang</div>
+            <div class="menu-item" data-menu="create">Tạo PDF</div>
+            <div class="menu-item" data-menu="ai">✨ AI</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;">
+            <button class="tbtn" data-action="openFile">📂 Mở</button>
+            <button class="tbtn" data-action="exportAnn">💾 Xuất PDF đã chú thích</button>
+            <button class="tbtn" data-action="printDoc">🖨 In</button>
+        </div>
+    </div>
+
+    <div class="menu-pop" id="menu-file" data-menu-pop>
+        <div data-action="openFile">Mở file PDF… <span class="k">Ctrl+O</span></div>
+        <div data-action="downloadOriginal">Tải bản gốc</div>
+        <hr>
+        <div data-action="exportAnn">Xuất PDF kèm chú thích <span class="k">Ctrl+S</span></div>
+        <div data-action="exportAnnJson">Xuất chú thích (.json)</div>
+        <div data-action="importAnnJson">Nhập chú thích (.json)</div>
+        <div data-action="exportPagePng">Xuất trang hiện tại (PNG)</div>
+        <div data-action="printDoc">In / Xuất PDF qua hộp thoại in</div>
+    </div>
+    <div class="menu-pop" id="menu-view" data-menu-pop>
+        <div data-action="zoomIn">Phóng to <span class="k">Ctrl+＋</span></div>
+        <div data-action="zoomOut">Thu nhỏ <span class="k">Ctrl+−</span></div>
+        <div data-action="fitWidth">Vừa chiều rộng <span class="k">Ctrl+0</span></div>
+        <div data-action="fitPage">Vừa trang</div>
+        <div data-action="zoom100">100%</div>
+        <hr>
+        <div data-action="rotateView">Xoay chế độ xem 90° <span class="k">R</span></div>
+        <div data-action="prevPage">Trang trước <span class="k">←</span></div>
+        <div data-action="nextPage">Trang sau <span class="k">→</span></div>
+        <hr>
+        <div data-action="copyPageText">Chép toàn bộ chữ trang này</div>
+        <div data-action="copyAllText">Chép toàn bộ chữ tài liệu</div>
+        <div data-action="showInfo">Thông tin tài liệu (metadata)</div>
+    </div>
+    <div class="menu-pop" id="menu-ann" data-menu-pop>
+        <div data-action="tool" data-arg="highlight">🖍 Đánh dấu (highlight)</div>
+        <div data-action="tool" data-arg="draw">✏️ Vẽ tự do</div>
+        <div data-action="tool" data-arg="note">📝 Ghi chú</div>
+        <div data-action="tool" data-arg="sign">✒️ Đóng dấu chữ ký</div>
+        <div data-action="tool" data-arg="erase">🧽 Xóa chú thích</div>
+        <hr>
+        <div data-action="clearPageAnn">Xóa hết chú thích trang này</div>
+        <div data-action="clearAllAnn">Xóa hết chú thích tài liệu</div>
+    </div>
+    <div class="menu-pop" id="menu-org" data-menu-pop>
+        <div data-action="rotatePages">Xoay trang vĩnh viễn…</div>
+        <div data-action="extractPages">Tách trang thành PDF mới…</div>
+        <div data-action="deletePages">Xóa trang…</div>
+        <div data-action="mergePdf">Gộp với một PDF khác…</div>
+        <div data-action="reorderPage">Di chuyển trang hiện tại…</div>
+    </div>
+    <div class="menu-pop" id="menu-create" data-menu-pop>
+        <div data-action="createEmpty">PDF trắng 1 trang</div>
+        <div data-action="createFromText">Tạo PDF từ văn bản (hỗ trợ tiếng Việt)…</div>
+        <div data-action="createFromImages">Tạo PDF từ ảnh…</div>
+        <div data-action="createFromDocs">Mở xDocs để soạn rồi xuất PDF</div>
+    </div>
+    <div class="menu-pop" id="menu-ai" data-menu-pop>
+        <div data-action="aiSummarize">✨ Tóm tắt tài liệu</div>
+        <div data-action="aiAskPage">✨ Hỏi về trang hiện tại</div>
+        <div data-action="aiTranslate">✨ Dịch trang hiện tại</div>
+        <div data-action="aiExtract">✨ Trích dữ liệu thành bảng</div>
+    </div>
+
     <div class="toolbar">
-        <button class="tool-btn">📂 Mở PDF</button>
-        <button class="tool-btn">💾 Lưu</button>
-        <div style="width:1px; height:24px; background:#1a1a1a; margin:0 8px;"></div>
-        <button class="tool-btn">✏️ Chú thích</button>
-        <button class="tool-btn">🖊️ Ký tên</button>
-        <button class="tool-btn">🔤 Đánh dấu</button>
-        <button class="tool-btn">🔄 Rotate</button>
-        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; color:#ccc; font-size:13px;">
-            <button class="tool-btn">◀</button>
-            <span>1 / 1</span>
-            <button class="tool-btn">▶</button>
-            <div style="width:1px; height:24px; background:#1a1a1a; margin:0 8px;"></div>
-            <span>100%</span>
+        <button class="tb2" data-action="prevPage" title="Trang trước">◀</button>
+        <input id="pageInput" type="number" min="1" value="1" title="Số trang">
+        <span id="pageCount" style="color:#a3a3ad;font-size:12px;">/ 0</span>
+        <button class="tb2" data-action="nextPage" title="Trang sau">▶</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="zoomOut">−</button>
+        <span id="zoomLabel" style="width:44px;text-align:center;font-family:monospace;font-size:12px;">100%</span>
+        <button class="tb2" data-action="zoomIn">＋</button>
+        <button class="tb2" data-action="fitWidth" title="Vừa chiều rộng">⤢</button>
+        <button class="tb2" data-action="rotateView" title="Xoay xem">⟳</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="tool" data-arg="highlight" id="tlHighlight" title="Đánh dấu">🖍</button>
+        <button class="tb2" data-action="tool" data-arg="draw" id="tlDraw" title="Vẽ tự do">✏️</button>
+        <button class="tb2" data-action="tool" data-arg="note" id="tlNote" title="Ghi chú">📝</button>
+        <button class="tb2" data-action="tool" data-arg="sign" id="tlSign" title="Chữ ký">✒️</button>
+        <button class="tb2" data-action="tool" data-arg="erase" id="tlErase" title="Xóa chú thích">🧽</button>
+        <div class="sep"></div>
+        <input id="searchInput" type="text" placeholder="Tìm trong PDF…">
+        <button class="tb2" data-action="doSearch" title="Tìm">🔍</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="copyPageText" title="Chép chữ trang này">⧉ Chữ</button>
+        <button class="tb2" data-action="exportAnn" title="Xuất PDF kèm chú thích">💾 Xuất</button>
+        <button class="tb2" data-action="printDoc" title="In">🖨</button>
+    </div>
+
+    <div class="workspace">
+        <div class="left">
+            <div class="tabs">
+                <button class="on" data-tab="thumbs">Trang</button>
+                <button data-tab="anns">Chú thích</button>
+                <button data-tab="search">Tìm kiếm</button>
+            </div>
+            <div class="panelBox" id="tab-thumbs"></div>
+            <div class="panelBox" id="tab-anns" style="display:none;"></div>
+            <div class="panelBox" id="tab-search" style="display:none;"></div>
+        </div>
+
+        <div class="viewer" id="viewer">
+            <div id="pageBox">
+                <canvas id="pageCanvas" width="10" height="10"></canvas>
+                <div id="overlay">
+                    <svg class="svgdraw" id="drawLayer"></svg>
+                </div>
+                <div class="empty" id="emptyBox">
+                    <b>Chưa mở file PDF nào</b>
+                    <div style="font-size:12.5px;max-width:440px;">Mở file PDF để xem, tìm kiếm, đánh dấu, ghi chú, ký tên, xoay/tách/gộp trang — hoặc tạo PDF mới từ văn bản tiếng Việt. Toàn bộ xử lý chạy ngay trong trình duyệt, file không rời khỏi máy bạn.</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                        <button data-action="openFile">📂 Mở PDF</button>
+                        <button data-action="createFromText">✍️ Tạo PDF từ văn bản</button>
+                        <button data-action="createFromImages">🖼 Tạo PDF từ ảnh</button>
+                        <button data-action="createEmpty">📄 PDF trắng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right">
+            <div class="pt">Chú thích</div>
+            <div class="row"><label>Màu</label>
+                <input type="color" id="annColor" value="#ffeb3b">
+                <select id="annPreset"><option value="#ffeb3b">Vàng</option><option value="#ff4040">Đỏ</option><option value="#4caf50">Xanh lá</option><option value="#2196f3">Xanh dương</option><option value="#e040fb">Hồng</option><option value="#111111">Đen</option></select>
+            </div>
+            <div class="row"><label>Nét vẽ</label><input type="range" id="annSize" min="1" max="14" value="3"><span class="v" id="annSizeV">3</span></div>
+            <div class="row"><label>Độ đậm</label><input type="range" id="annOpacity" min="10" max="100" value="45"><span class="v" id="annOpacityV">45</span></div>
+            <div class="row"><label>Nội dung</label><input type="text" id="noteText" placeholder="chữ cho ghi chú / highlight"></div>
+
+            <div class="pt">Chữ ký</div>
+            <canvas id="sigPad" width="480" height="176"></canvas>
+            <div class="g2" style="margin-top:5px;">
+                <button data-action="clearSig">Xóa nét ký</button>
+                <button data-action="useSig">✔ Dùng chữ ký này</button>
+            </div>
+            <div class="g2">
+                <button data-action="typeSig">Gõ chữ ký…</button>
+                <button data-action="tool" data-arg="sign">Đóng dấu lên trang</button>
+            </div>
+
+            <div class="pt">Tạo PDF từ văn bản</div>
+            <div class="row" style="align-items:flex-start;"><textarea id="newText" placeholder="Dán/gõ nội dung tiếng Việt ở đây rồi bấm Tạo PDF…"></textarea></div>
+            <div class="row"><label>Cỡ chữ</label><input type="number" id="newSize" value="12" min="6" max="36"></div>
+            <div class="row"><label>Khổ</label><select id="newPaper"><option value="a4">A4</option><option value="letter">US Letter</option><option value="a5">A5</option></select></div>
+            <div class="g2"><button data-action="createFromTextNow">📄 Tạo PDF</button><button data-action="createEmpty">Trắng</button></div>
+
+            <div class="pt">Thông tin</div>
+            <div class="info" id="infoBox">Chưa mở tài liệu.</div>
         </div>
     </div>
-    <div class="page-container">
-        <div class="pdf-page">
-            <h1 style="color:#b30b00; margin-bottom:20px;">Tài liệu PDF</h1>
-            <p style="margin-bottom:16px;">Đây là trình xem và chỉnh sửa PDF giống Adobe Acrobat. Bạn có thể:</p>
-            <ul style="margin-left:20px; margin-bottom:16px;">
-                <li>Xem file PDF</li>
-                <li>Thêm chú thích, highlight văn bản</li>
-                <li>Ký tên điện tử</li>
-                <li>Chuyển đổi PDF sang Word/Excel/Ảnh</li>
-                <li>Gộp/tách file PDF</li>
-            </ul>
-            <p style="color:#666; font-size:12px; margin-top:40px;">Tích hợp AI: có thể tóm tắt nội dung PDF, dịch thuật, trích xuất dữ liệu tự động khi bạn yêu cầu trong Chat.</p>
-        </div>
-        <div class="page-num">Trang 1</div>
+
+    <div class="statusbar">
+        <span id="stFile">Chưa có file</span>
+        <span id="stPage">Trang 0/0</span>
+        <span id="stAnn">0 chú thích</span>
+        <span id="stTool">Công cụ: chọn/xem</span>
+        <span data-status-text>Sẵn sàng</span>
     </div>
+
+    <div id="printArea"></div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="../vendor/pdf.min.js"></script>
+    <script src="../vendor/pdf-lib.min.js"></script>
+    <script src="../vendor/pdf-lib-fontkit.umd.min.js"></script>
+    <script src="xpdf.js"></script>
 </body>
 </html>

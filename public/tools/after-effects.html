@@ -2,166 +2,159 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xFX - Motion Graphics & Hiệu ứng</title>
+    <title>xFX — Motion Graphics &amp; VFX</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI", sans-serif; background:#1a1a1a; color:#d0d0d0; height:100vh; display:flex; flex-direction:column; font-size:13px; }
-        .topbar { height:36px; background:#9999ff; color:#1a0033; display:flex; align-items:center; padding:0 12px; gap:8px; font-weight:600; font-size:13px; }
-        .workspace { flex:1; display:flex; }
-        .proj-panel { width:240px; background:#252525; border-right:1px solid #3a3a3a; padding:10px; }
-        .panel-title { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:8px; font-weight:600; }
-        .proj-item { padding:5px 8px; font-size:12px; cursor:pointer; border-radius:3px; }
-        .proj-item:hover { background:#333; }
-        .comp-item { padding:6px 8px; background:#2f2f2f; border-radius:4px; margin-bottom:4px; cursor:pointer; font-size:12px; }
-        
-        .center-area { flex:1; display:flex; flex-direction:column; }
-        .comp-viewer { flex:1; background:#0a0a0a; display:flex; align-items:center; justify-content:center; position:relative; }
-        .comp-screen { width:70%; aspect-ratio:16/9; background:linear-gradient(45deg, #1a0033, #330066, #003366); display:flex; align-items:center; justify-content:center; border:1px solid #333; position:relative; }
-        .comp-screen-text { font-size:24px; color:white; text-shadow:0 0 20px #9999ff; font-weight:300; }
-        .safe-area { position:absolute; inset:10%; border:1px dashed rgba(255,255,255,0.2); pointer-events:none; }
-        .viewer-controls { position:absolute; bottom:10px; background:rgba(0,0,0,0.7); padding:6px 12px; border-radius:6px; font-family:monospace; font-size:12px; color:white; display:flex; gap:12px; align-items:center; }
-        .time-display { font-size:16px; font-weight:600; color:#9999ff; }
-        
-        .effects-controls { height:260px; background:#252525; border-top:1px solid #3a3a3a; display:flex; }
-        .effect-controls-panel { flex:1; padding:10px; overflow-y:auto; }
-        .effect-param { margin-bottom:8px; display:flex; align-items:center; gap:8px; }
-        .param-label { width:120px; font-size:12px; color:#aaa; }
-        .param-slider { flex:1; accent-color:#9999ff; }
-        
-        .timeline-area { height:240px; background:#1e1e1e; border-top:2px solid #333; display:flex; }
-        .timeline-left { width:200px; background:#252525; border-right:1px solid #3a3a3a; }
-        .timeline-left .layer-row { padding:8px 10px; border-bottom:1px solid #333; font-size:12px; display:flex; align-items:center; gap:6px; }
-        .layer-type { font-size:14px; }
-        .timeline-right { flex:1; position:relative; overflow-x:auto; }
-        .time-ruler { height:24px; background:#222; border-bottom:1px solid #333; position:relative; }
-        .time-marker { position:absolute; top:0; bottom:0; width:2px; background:#ff4040; z-index:10; left:100px; }
-        .layer-track { height:32px; border-bottom:1px solid #2a2a2a; position:relative; }
-        .layer-key { position:absolute; top:50%; transform:translateY(-50%); width:8px; height:8px; background:#9999ff; transform:rotate(45deg) translateY(-50%); }
-        .layer-bar { position:absolute; top:4px; bottom:4px; background:linear-gradient(90deg, #6666cc, #9999ff); border-radius:3px; left:150px; width:300px; }
-        .bar-text { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:11px; color:white; white-space:nowrap; }
-        
-        .right-panel { width:280px; background:#252525; border-left:1px solid #3a3a3a; padding:10px; overflow-y:auto; }
-        .effects-list { font-size:12px; }
-        .effect-category { padding:4px 0; color:#888; font-weight:600; text-transform:uppercase; font-size:10px; margin-top:8px; }
-        .effect-entry { padding:4px 8px; cursor:pointer; border-radius:3px; }
+        :root { --bg:#1a1a1a; --bg2:#232323; --bg3:#2b2b2b; --bd:#3a3a3a; --tx:#ddd; --dim:#999; --acc:#9999ff; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#2a1a4a,#1a0033); display:flex; align-items:center; padding:0 12px; gap:10px; border-bottom:1px solid var(--bd); flex-shrink:0; }
+        .topbar b { color:#cfc6ff; }
+        .tbtn { padding:5px 11px; background:#333; border:1px solid #4a4a4a; color:#eee; border-radius:5px; cursor:pointer; font-size:12px; font-family:inherit; }
+        .tbtn:hover { background:#444; }
+        .tbtn.on { background:var(--acc); color:#111; border-color:var(--acc); font-weight:700; }
+        .tbtn.primary { background:#6d28d9; border-color:#7c3aed; color:#fff; }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .proj-panel { width:196px; background:var(--bg2); border-right:1px solid var(--bd); padding:8px; overflow-y:auto; flex-shrink:0; }
+        .panel-title { font-size:10.5px; text-transform:uppercase; color:#888; font-weight:700; letter-spacing:.5px; margin:10px 0 6px; }
+        .proj-item, .comp-item { padding:6px 8px; border-radius:5px; cursor:pointer; font-size:12px; margin-bottom:3px; display:flex; justify-content:space-between; gap:6px; align-items:center; }
+        .proj-item:hover, .comp-item:hover { background:#333; }
+        .comp-item.on { background:rgba(153,153,255,.25); outline:1px solid var(--acc); }
+        .proj-item .x, .comp-item .x { color:#c99; font-size:11px; }
+        .center-area { flex:1; display:flex; flex-direction:column; min-width:0; }
+        .comp-viewer { flex:1; display:flex; align-items:center; justify-content:center; background:#0e0e0e; padding:14px; position:relative; min-height:0; }
+        #compCanvas { background:#000; box-shadow:0 8px 40px rgba(0,0,0,.8); max-width:100%; max-height:100%; }
+        .viewer-controls { display:flex; align-items:center; gap:8px; padding:7px 12px; background:var(--bg2); border-top:1px solid var(--bd); flex-shrink:0; flex-wrap:wrap; }
+        .time-display { font-family:monospace; font-size:12px; color:#cfc6ff; }
+        .effects-controls { height:170px; background:var(--bg2); border-top:1px solid var(--bd); overflow-y:auto; flex-shrink:0; }
+        .ec-head { padding:6px 12px; background:var(--bg3); font-size:12px; font-weight:700; color:#cfc6ff; border-bottom:1px solid var(--bd); }
+        .ec-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; padding:10px 12px; }
+        .prop { display:flex; align-items:center; gap:7px; font-size:12px; }
+        .prop label { width:74px; color:var(--dim); flex-shrink:0; }
+        .prop input[type=range] { flex:1; accent-color:var(--acc); }
+        .prop input[type=number], .prop input[type=text] { width:62px; background:#1a1a1a; border:1px solid #444; color:#eee; padding:3px 5px; border-radius:4px; font-size:11.5px; }
+        .prop .val { width:48px; text-align:right; font-family:monospace; font-size:11px; color:#cfc6ff; }
+        .kf { width:22px; height:22px; border-radius:4px; border:1px solid #4a4a4a; background:#262626; color:#ffd166; cursor:pointer; font-size:11px; flex-shrink:0; }
+        .kf.has { background:#6d5a00; border-color:#ffd166; }
+        .timeline-area { height:210px; background:#1e1e1e; border-top:2px solid var(--bd); display:flex; flex-shrink:0; }
+        .tl-left { width:196px; background:var(--bg2); border-right:1px solid var(--bd); overflow-y:auto; flex-shrink:0; }
+        .layer-row { height:30px; padding:0 8px; border-bottom:1px solid #2e2e2e; font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer; }
+        .layer-row.on { background:rgba(153,153,255,.18); }
+        .layer-row .vis { cursor:pointer; opacity:.8; }
+        .layer-row .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .tl-right { flex:1; position:relative; overflow:auto; }
+        .tl-inner { position:relative; }
+        .time-ruler { height:24px; background:#262626; border-bottom:1px solid var(--bd); position:relative; cursor:pointer; }
+        .ruler-tick { position:absolute; top:0; bottom:0; border-left:1px solid #444; font-size:9px; color:#999; padding:2px 4px; font-family:monospace; }
+        .layer-track { height:30px; border-bottom:1px solid #2a2a2a; position:relative; }
+        .layer-bar { position:absolute; top:4px; bottom:4px; background:linear-gradient(90deg,#5a5aa8,#8f8fd6); border-radius:3px; opacity:.85; }
+        .layer-bar.sel { outline:1px solid #ffd166; }
+        .kdot { position:absolute; width:9px; height:9px; background:#ffd166; transform:rotate(45deg); cursor:pointer; top:50%; margin-top:-4.5px; z-index:3; }
+        .kdot.on { background:#fff; }
+        .time-marker { position:absolute; top:0; bottom:0; width:2px; background:#ff4040; z-index:10; pointer-events:none; }
+        .right-panel { width:230px; background:var(--bg2); border-left:1px solid var(--bd); padding:8px; overflow-y:auto; flex-shrink:0; }
+        .effect-category { padding:5px 0 3px; color:#888; font-weight:700; text-transform:uppercase; font-size:10px; }
+        .effect-entry { padding:5px 8px; cursor:pointer; border-radius:4px; font-size:12px; }
         .effect-entry:hover { background:#333; }
-        
-        .statusbar { height:22px; background:#454545; color:#ccc; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:20px; }
+        .effect-entry.added { background:rgba(153,153,255,.2); }
+        .chip { display:inline-block; background:#333; border:1px solid #4a4a4a; border-radius:10px; padding:1px 7px; font-size:10.5px; margin:2px; cursor:pointer; }
+        .chip:hover { border-color:#ff6b6b; color:#ffb3b3; }
+        .statusbar { height:22px; background:#333; color:#bbb; font-size:11px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <span>✨ xFX CC 2026</span>
-        <span style="font-weight:400; margin-left:10px; opacity:0.8;">Motion Graphics · Visual Effects · Compositing</span>
-        <div style="margin-left:auto;">✨ AI Keyframe · Auto Tracking</div>
+        <b>✨ xFX</b><span style="opacity:.75;font-size:12px;">Motion Graphics · VFX · Compositing</span>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="tbtn" data-action="newComp">＋ Comp mới</button>
+            <button class="tbtn" data-action="importFootage">📥 Nhập footage</button>
+            <button class="tbtn" data-action="aiBuild">✨ AI tạo animation</button>
+            <button class="tbtn primary" data-action="render">🎬 Render video</button>
+        </div>
     </div>
 
     <div class="workspace">
         <div class="proj-panel">
-            <div class="panel-title">Project</div>
-            <div class="proj-item">📁 Footage</div>
-            <div class="proj-item">📁 Compositions</div>
-            <div class="proj-item">📁 Assets</div>
-            <div class="proj-item">📁 Solids</div>
-            <div style="margin-top:12px;"></div>
             <div class="panel-title">Compositions</div>
-            <div class="comp-item">🎞️ Main Comp 1080p</div>
-            <div class="comp-item">🎞️ Intro Animation</div>
-            <div class="comp-item">🎞️ Lower Third</div>
-            <div class="comp-item">🎞️ Logo Reveal</div>
+            <div id="compList"></div>
+            <div class="panel-title">Footage / Assets</div>
+            <div id="footageList"><div style="color:#777;font-size:11.5px;padding:4px;">Chưa có footage</div></div>
+            <div class="panel-title">Thêm layer</div>
+            <div class="proj-item" data-action="addLayer" data-arg="solid">🟦 Solid (màu)</div>
+            <div class="proj-item" data-action="addLayer" data-arg="text">🔤 Text</div>
+            <div class="proj-item" data-action="addLayer" data-arg="circle">⭕ Hình tròn</div>
+            <div class="proj-item" data-action="addLayer" data-arg="rect">▭ Hình chữ nhật</div>
+            <div class="proj-item" data-action="addLayer" data-arg="triangle">△ Tam giác</div>
+            <div class="proj-item" data-action="addLayer" data-arg="star">✦ Ngôi sao</div>
+            <div class="proj-item" data-action="addLayer" data-arg="gradient">🌈 Nền gradient</div>
+            <div class="proj-item" data-action="deleteLayer" style="color:#e0a0a0;">🗑 Xóa layer đang chọn</div>
         </div>
 
         <div class="center-area">
-            <div class="comp-viewer">
-                <div class="comp-screen">
-                    <div class="safe-area"></div>
-                    <div class="comp-screen-text">Composition Preview</div>
-                </div>
-                <div class="viewer-controls">
-                    <button style="background:none; border:none; color:white; cursor:pointer; font-size:14px;">⏮</button>
-                    <button style="background:none; border:none; color:white; cursor:pointer; font-size:14px;">▶</button>
-                    <button style="background:none; border:none; color:white; cursor:pointer; font-size:14px;">⏭</button>
-                    <div class="time-display">00:00:05:00</div>
-                    <span>100%</span>
-                    <span>Full</span>
-                </div>
+            <div class="comp-viewer"><canvas id="compCanvas" width="960" height="540"></canvas></div>
+            <div class="viewer-controls">
+                <button class="tbtn" data-action="goStart">⏮</button>
+                <button class="tbtn" data-action="stepBack">◀ Frame</button>
+                <button class="tbtn on" data-action="playPause" id="playBtn">▶ Phát</button>
+                <button class="tbtn" data-action="stepFwd">Frame ▶</button>
+                <button class="tbtn" data-action="goEnd">⏭</button>
+                <button class="tbtn" data-action="loopToggle" id="loopBtn">🔁 Lặp</button>
+                <span class="time-display" id="timeDisp">00:00:00:00 / 00:00:05:00</span>
+                <span style="color:#888;">Zoom</span>
+                <input type="range" id="viewZoom" min="20" max="160" value="100" style="width:90px;accent-color:var(--acc);">
+                <span style="color:#888;">Nền</span>
+                <select id="compBg" style="background:#1a1a1a;color:#eee;border:1px solid #444;border-radius:4px;padding:3px;">
+                    <option value="#000000">Đen</option><option value="#ffffff">Trắng</option>
+                    <option value="#101828">Xanh đêm</option><option value="transparent">Trong suốt</option>
+                </select>
+                <button class="tbtn" data-action="exportFrame">📸 Chụp frame</button>
             </div>
 
             <div class="effects-controls">
-                <div class="effect-controls-panel">
-                    <div class="panel-title">Effect Controls - Motion Blur</div>
-                    <div class="effect-param"><span class="param-label">Shutter Angle</span><input type="range" class="param-slider" min="0" max="720" value="180"><span style="font-family:monospace; width:50px;">180°</span></div>
-                    <div class="effect-param"><span class="param-label">Shutter Phase</span><input type="range" class="param-slider" min="-180" max="180" value="0"><span style="font-family:monospace; width:50px;">0°</span></div>
-                    <div class="effect-param"><span class="param-label">Samples</span><input type="range" class="param-slider" min="2" max="64" value="16"><span style="font-family:monospace; width:50px;">16</span></div>
-                    
-                    <div class="panel-title" style="margin-top:12px;">Transform</div>
-                    <div class="effect-param"><span class="param-label">Position</span><input type="text" value="960, 540" style="flex:1; background:#1a1a1a; border:1px solid #444; color:#ddd; padding:4px 8px; border-radius:3px; font-family:monospace; font-size:11px;"></div>
-                    <div class="effect-param"><span class="param-label">Scale</span><input type="range" class="param-slider" min="0" max="200" value="100"><span style="font-family:monospace; width:50px;">100%</span></div>
-                    <div class="effect-param"><span class="param-label">Rotation</span><input type="range" class="param-slider" min="0" max="360" value="0"><span style="font-family:monospace; width:50px;">0°</span></div>
-                    <div class="effect-param"><span class="param-label">Opacity</span><input type="range" class="param-slider" min="0" max="100" value="100"><span style="font-family:monospace; width:50px;">100%</span></div>
+                <div class="ec-head" id="ecHead">Effect Controls — chưa chọn layer</div>
+                <div class="ec-grid" id="ecGrid"></div>
+                <div style="padding:0 12px 10px;">
+                    <div class="panel-title" style="margin-top:2px;">Hiệu ứng đang áp trên layer <span style="color:#666;text-transform:none;">(bấm ✕ để gỡ)</span></div>
+                    <div id="layerFx"></div>
                 </div>
             </div>
 
             <div class="timeline-area">
-                <div class="timeline-left">
-                    <div class="layer-row"><span class="layer-type">📹</span> Video Layer</div>
-                    <div class="layer-row"><span class="layer-type">✨</span> Adjustment Layer</div>
-                    <div class="layer-row"><span class="layer-type">🔤</span> Text Animation</div>
-                    <div class="layer-row"><span class="layer-type">🟦</span> Solid - Blue</div>
-                    <div class="layer-row"><span class="layer-type">💡</span> Light Layer</div>
-                    <div class="layer-row"><span class="layer-type">🎥</span> Camera</div>
-                </div>
-                <div class="timeline-right" style="min-width:800px;">
-                    <div class="time-ruler">
-                        <div class="time-marker"></div>
+                <div class="tl-left" id="tlLeft"></div>
+                <div class="tl-right" id="tlRight">
+                    <div class="tl-inner" id="tlInner">
+                        <div class="time-ruler" id="timeRuler"></div>
+                        <div id="tracksBox"></div>
+                        <div class="time-marker" id="timeMarker" style="left:0;"></div>
                     </div>
-                    <div class="layer-track"><div class="layer-bar" style="left:80px; width:400px;"><span class="bar-text">Video.mp4</span><div class="layer-key" style="left:20px;"></div><div class="layer-key" style="left:380px;"></div></div></div>
-                    <div class="layer-track"><div class="layer-bar" style="left:120px; width:320px; background:linear-gradient(90deg,#cc6600,#ffaa44);"><span class="bar-text">Adjustment</span></div></div>
-                    <div class="layer-track"><div class="layer-bar" style="left:150px; width:200px; background:linear-gradient(90deg,#0066cc,#44aaff);"><span class="bar-text">Title Animation</span><div class="layer-key" style="left:10px; background:#44aaff;"></div></div></div>
-                    <div class="layer-track"><div class="layer-bar" style="left:0; width:600px; background:linear-gradient(90deg,#004499,#0066dd); opacity:0.6;"><span class="bar-text">Background Solid</span></div></div>
-                    <div class="layer-track"></div>
-                    <div class="layer-track"></div>
                 </div>
             </div>
         </div>
 
         <div class="right-panel">
-            <div class="panel-title">Effects & Presets</div>
-            <div class="effects-list">
-                <div class="effect-category">3D Channel</div>
-                <div class="effect-category">Audio</div>
-                <div class="effect-category">Blur & Sharpen</div>
-                <div class="effect-entry">Gaussian Blur</div>
-                <div class="effect-entry">Motion Blur</div>
-                <div class="effect-entry">Camera Lens Blur</div>
-                <div class="effect-entry">Unsharp Mask</div>
-                <div class="effect-category">Color Correction</div>
-                <div class="effect-entry">Curves</div>
-                <div class="effect-entry">Levels</div>
-                <div class="effect-entry">Hue/Saturation</div>
-                <div class="effect-entry">Color Balance</div>
-                <div class="effect-category">Distort</div>
-                <div class="effect-category">Generate</div>
-                <div class="effect-entry">Fill</div>
-                <div class="effect-entry">Gradient Ramp</div>
-                <div class="effect-entry">Lens Flare</div>
-                <div class="effect-category">Keying</div>
-                <div class="effect-entry">Keylight (1.2)</div>
-                <div class="effect-category">Stylize</div>
-                <div class="effect-entry">Glow</div>
-                <div class="effect-category">Text</div>
-                <div class="effect-category">✨ AI Effects</div>
-                <div class="effect-entry">AI Rotoscoping</div>
-                <div class="effect-entry">AI Upscale</div>
-                <div class="effect-entry">AI Slow Motion</div>
-                <div class="effect-entry">AI Background Remove</div>
-            </div>
+            <div class="panel-title">Effects &amp; Presets</div>
+            <div id="fxList"></div>
+            <div class="panel-title">Animation presets</div>
+            <div class="proj-item" data-action="preset" data-arg="fadein">Fade in</div>
+            <div class="proj-item" data-action="preset" data-arg="slidein">Slide từ trái</div>
+            <div class="proj-item" data-action="preset" data-arg="pop">Pop scale</div>
+            <div class="proj-item" data-action="preset" data-arg="spin">Xoay 360°</div>
+            <div class="proj-item" data-action="preset" data-arg="bounce">Nảy (bounce)</div>
+            <div class="proj-item" data-action="preset" data-arg="typewriter">Chữ gõ từng ký tự</div>
+            <div class="panel-title">✨ AI</div>
+            <div class="proj-item" data-action="aiRoto">AI Rotoscoping (tách nền)</div>
+            <div class="proj-item" data-action="aiUpscale">AI Upscale ×2</div>
+            <div class="proj-item" data-action="aiSlowmo">AI Slow Motion 0.5×</div>
         </div>
     </div>
 
     <div class="statusbar">
-        <span>Main Comp 1920×1080 · 29.97fps · Duration 0:00:30:00</span>
-        <span style="margin-left:auto;">✨ Motion Graphics, VFX, compositing chuyên nghiệp giống After Effects</span>
+        <span id="stComp">Comp: Main 960×540 · 30fps · 5s</span>
+        <span id="stLayers">0 layer</span>
+        <span style="margin-left:auto;" data-status-text>Sẵn sàng</span>
     </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="after-effects.js"></script>
 </body>
 </html>

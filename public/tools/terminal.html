@@ -2,47 +2,175 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xTerminal</title>
+    <title>xTerminal — Dòng lệnh</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Cascadia Code", "Consolas", monospace; background:#0c0c0c; color:#33ff33; height:100vh; padding:16px; overflow-y:auto; font-size:14px; }
-        .line { display:flex; margin-bottom:4px; white-space:pre-wrap; }
-        .prompt { color:#00bfff; margin-right:8px; }
-        #input { background:transparent; border:none; color:#33ff33; font:inherit; flex:1; outline:none; }
+        :root { --acc:#00ff9c; --bg:#0a0e0c; --bg2:#101714; --bd:#1e2b25; --tx:#d7f5e6; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#0d3b26,#06231a); border-bottom:1px solid var(--bd); color:var(--acc); display:flex; align-items:center; padding:0 10px; gap:6px; font-weight:700; flex-shrink:0; }
+        .menu-item { padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:500; color:#bfe9d5; }
+        .menu-item:hover { background:rgba(0,255,156,.12); color:#fff; }
+        .menu-pop { position:fixed; display:none; min-width:250px; background:#101714; border:1px solid #24402f; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.7); z-index:999; color:#d7f5e6; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--acc); color:#04140d; }
+        .menu-pop span.k { opacity:.6; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #24402f; margin:4px 2px; }
+        .tbtn { padding:5px 10px; background:rgba(0,255,156,.1); border:1px solid #24402f; color:var(--acc); border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .tbtn:hover { background:rgba(0,255,156,.22); }
+        .toolbar { height:40px; background:var(--bg2); border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:5px; padding:0 8px; overflow-x:auto; flex-shrink:0; }
+        .qb { padding:4px 8px; background:#0d1512; border:1px solid #24402f; color:#9fd8bd; border-radius:5px; cursor:pointer; font-size:11.5px; white-space:nowrap; font-family:Consolas,monospace; }
+        .qb:hover { border-color:var(--acc); color:#fff; }
+        .badge { padding:4px 9px; border-radius:20px; font-size:11px; font-weight:700; border:1px solid; white-space:nowrap; }
+        .badge.on { color:#0aff9c; border-color:#0aff9c; background:rgba(10,255,156,.1); }
+        .badge.off { color:#ffb020; border-color:#7a5a12; background:rgba(255,176,32,.08); }
+        .sep { width:1px; height:22px; background:var(--bd); flex-shrink:0; }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .termcol { flex:1; display:flex; flex-direction:column; min-width:0; }
+        #out { flex:1; overflow-y:auto; padding:10px 12px; font-family:Consolas,"Cascadia Code",monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+        #out .cmdline { color:#0aff9c; }
+        #out .prompt { color:#4ec9b0; }
+        #out .err { color:#ff6b81; }
+        #out .warn { color:#ffcc66; }
+        #out .dim { color:#6d8c7c; }
+        #out .hl { color:#ffffff; background:rgba(10,255,156,.18); }
+        #out a { color:#7fd4ff; }
+        .inputrow { display:flex; align-items:center; gap:7px; padding:8px 12px; border-top:1px solid var(--bd); background:var(--bg2); flex-shrink:0; }
+        #promptLabel { font-family:Consolas,monospace; color:#4ec9b0; font-size:13px; white-space:nowrap; }
+        #cmd { flex:1; background:transparent; border:none; outline:none; color:#eafff5; font-family:Consolas,monospace; font-size:13.5px; caret-color:var(--acc); }
+        .side { width:262px; background:var(--bg2); border-left:1px solid var(--bd); padding:10px; overflow-y:auto; flex-shrink:0; }
+        .pt { font-size:10.5px; text-transform:uppercase; color:#6d8c7c; font-weight:700; margin:12px 0 6px; letter-spacing:.5px; }
+        .pt:first-child { margin-top:0; }
+        .tree { font-family:Consolas,monospace; font-size:11.5px; line-height:1.65; color:#9fd8bd; }
+        .tree span { cursor:pointer; display:block; padding:0 4px; border-radius:3px; }
+        .tree span:hover { background:rgba(10,255,156,.12); color:#fff; }
+        .cmds { display:flex; flex-wrap:wrap; gap:4px; }
+        .cmds button { padding:4px 7px; background:#0d1512; border:1px solid #24402f; color:#9fd8bd; border-radius:4px; cursor:pointer; font-size:11px; font-family:Consolas,monospace; }
+        .cmds button:hover { border-color:var(--acc); color:#fff; }
+        .info { font-family:Consolas,monospace; font-size:11px; color:#8fbfa8; line-height:1.7; background:#0c120f; border:1px solid var(--bd); border-radius:6px; padding:8px; word-break:break-word; }
+        .info b { color:var(--acc); }
+        .row { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:11.5px; }
+        .row label { width:58px; color:#6d8c7c; flex-shrink:0; }
+        .row input, .row select { flex:1; min-width:0; background:#0c120f; border:1px solid #24402f; color:#fff; padding:4px 6px; border-radius:4px; font-size:11.5px; font-family:inherit; }
+        .statusbar { height:22px; background:#070b09; border-top:1px solid var(--bd); color:#6d8c7c; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .statusbar [data-status-text] { margin-left:auto; color:var(--acc); }
+        body.th-light { --bg:#f4f7f5; --bg2:#e8efe9; --bd:#cdd9d1; --tx:#123323; --acc:#0a7f52; }
+        body.th-light #out { color:#123323; }
+        body.th-matrix { --acc:#7dff5c; --bg:#000; --bg2:#050a03; --bd:#123016; --tx:#c9f7b6; }
+        body.th-amber { --acc:#ffb000; --bg:#140d02; --bg2:#1c1305; --bd:#3a2a0c; --tx:#ffe6b0; }
+        #out::-webkit-scrollbar, .side::-webkit-scrollbar { width:9px; }
+        #out::-webkit-scrollbar-thumb, .side::-webkit-scrollbar-thumb { background:#24402f; border-radius:5px; }
     </style>
 </head>
 <body>
-    <div>Rune Terminal v1.0 — Tích hợp với AI Control Center. Gõ help để xem lệnh.</div>
-    <div style="margin-bottom:16px; opacity:0.7;">Kết nối trực tiếp với C++ backend để thực thi lệnh trên máy của bạn.</div>
-    <div id="output"></div>
-    <div class="line"><span class="prompt">xkiro@local:~$</span><input id="input" autofocus spellcheck="false"></div>
-    <script>
-        const input = document.getElementById('input');
-        const output = document.getElementById('output');
-        input.focus();
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const cmd = input.value;
-                const line = document.createElement('div');
-                line.className = 'line';
-                line.innerHTML = `<span class="prompt">xkiro@local:~$</span>${cmd}`;
-                output.appendChild(line);
-                const result = document.createElement('div');
-                result.style.marginBottom = '12px';
-                
-                if (cmd === 'help') result.textContent = 'Lệnh: help, ls, pwd, date, clear, sysinfo';
-                else if (cmd === 'ls') result.textContent = 'Documents  Downloads  Pictures  Videos  Projects';
-                else if (cmd === 'pwd') result.textContent = '/home/user';
-                else if (cmd === 'date') result.textContent = new Date().toString();
-                else if (cmd === 'clear') { output.innerHTML = ''; input.value = ''; return; }
-                else if (cmd === 'sysinfo') { result.innerHTML = `Rune Management v1.0\nBackend: C++20\nApp shell: Rust Tauri\nPlatform: Linux x64`; }
-                else if (cmd.trim() !== '') result.textContent = `[C++ backend] Đã nhận lệnh: "${cmd}". Khi build C++ CLI hoàn chỉnh, output của lệnh sẽ hiện ở đây.`;
-                
-                output.appendChild(result);
-                input.value = '';
-                window.scrollTo(0, document.body.scrollHeight);
-            }
-        });
-    </script>
+    <div class="topbar">
+        <span>$_ xTerminal</span>
+        <div style="display:flex;gap:2px;margin-left:8px;">
+            <div class="menu-item" data-menu="file">Phiên</div>
+            <div class="menu-item" data-menu="cmd">Lệnh</div>
+            <div class="menu-item" data-menu="backend">Backend</div>
+            <div class="menu-item" data-menu="ai">✨ AI</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;">
+            <span class="badge off" id="modeBadge">đang kiểm tra…</span>
+            <button class="tbtn" data-action="clearScreen">Xóa màn hình</button>
+            <button class="tbtn" data-action="aiCmd">✨ AI gợi ý lệnh</button>
+        </div>
+    </div>
+
+    <div class="menu-pop" id="menu-file" data-menu-pop>
+        <div data-action="clearScreen">Xóa màn hình <span class="k">Ctrl+L</span></div>
+        <div data-action="exportLog">Tải nhật ký phiên (.txt)</div>
+        <div data-action="saveSession">Lưu phiên (lệnh đã gõ)</div>
+        <div data-action="loadSession">Mở lại phiên đã lưu</div>
+        <hr>
+        <div data-action="resetFs">Khôi phục hệ thống file ảo</div>
+        <div data-action="bigFont">Cỡ chữ to/nhỏ</div>
+        <div data-action="theme" data-arg="dark">Giao diện: xanh đen</div>
+        <div data-action="theme" data-arg="th-light">Giao diện: sáng</div>
+        <div data-action="theme" data-arg="th-matrix">Giao diện: Matrix</div>
+        <div data-action="theme" data-arg="th-amber">Giao diện: hổ phách</div>
+    </div>
+    <div class="menu-pop" id="menu-cmd" data-menu-pop>
+        <div data-action="run" data-arg="help">help — liệt kê lệnh</div>
+        <div data-action="run" data-arg="sysinfo">sysinfo — thông tin hệ thống</div>
+        <div data-action="run" data-arg="neofetch">neofetch — ảnh ASCII</div>
+        <div data-action="run" data-arg="ls -la">ls -la — liệt kê file</div>
+        <div data-action="run" data-arg="tree">tree — cây thư mục</div>
+        <div data-action="run" data-arg="ps">ps — tiến trình</div>
+        <div data-action="run" data-arg="df -h">df -h — dung lượng</div>
+        <div data-action="run" data-arg="date">date — ngày giờ</div>
+        <div data-action="run" data-arg="history">history — lịch sử lệnh</div>
+    </div>
+    <div class="menu-pop" id="menu-backend" data-menu-pop>
+        <div data-action="checkBackend">Kiểm tra backend C++ (/api/health)</div>
+        <div data-action="forceVirtual">Ép dùng shell ảo trong trình duyệt</div>
+        <div data-action="forceBackend">Ép dùng backend C++ (/api/cli)</div>
+        <hr>
+        <div data-action="run" data-arg="api /api/system">Gọi /api/system</div>
+        <div data-action="run" data-arg="api /api/market?country=VN">Gọi /api/market?country=VN</div>
+        <div data-action="showBuild">Hướng dẫn chạy server C++</div>
+    </div>
+    <div class="menu-pop" id="menu-ai" data-menu-pop>
+        <div data-action="aiCmd">✨ Diễn đạt → lệnh shell</div>
+        <div data-action="aiExplain">✨ Giải thích lệnh vừa chạy</div>
+        <div data-action="aiFix">✨ Sửa lỗi từ output vừa rồi</div>
+        <div data-action="run" data-arg="ai viết cho tôi 1 trang web hello">ai &lt;mô tả&gt; — hỏi AI ngay trong terminal</div>
+    </div>
+
+    <div class="toolbar">
+        <button class="qb" data-action="run" data-arg="help">help</button>
+        <button class="qb" data-action="run" data-arg="sysinfo">sysinfo</button>
+        <button class="qb" data-action="run" data-arg="neofetch">neofetch</button>
+        <button class="qb" data-action="run" data-arg="ls -la">ls -la</button>
+        <button class="qb" data-action="run" data-arg="tree">tree</button>
+        <button class="qb" data-action="run" data-arg="cat readme.md">cat readme.md</button>
+        <button class="qb" data-action="run" data-arg="ps">ps</button>
+        <button class="qb" data-action="run" data-arg="df -h">df -h</button>
+        <button class="qb" data-action="run" data-arg="calc 2^10+sqrt(144)">calc 2^10+√144</button>
+        <button class="qb" data-action="run" data-arg="open xphoto">open xphoto</button>
+        <button class="qb" data-action="run" data-arg="fetch https://api.github.com/repos/Vecter-Core/Management-application">fetch github api</button>
+        <button class="qb" data-action="aiCmd">✨ AI</button>
+        <div class="sep"></div>
+        <span style="color:#6d8c7c;font-size:11.5px;white-space:nowrap;">Tab = tự hoàn thành · ↑/↓ = lịch sử · Ctrl+L = xóa</span>
+    </div>
+
+    <div class="workspace">
+        <div class="termcol">
+            <div id="out"></div>
+            <div class="inputrow">
+                <span id="promptLabel">guest@rune:~$</span>
+                <input id="cmd" autocomplete="off" spellcheck="false" placeholder="gõ lệnh rồi Enter…  (gõ 'help' để xem tất cả)">
+            </div>
+        </div>
+
+        <div class="side">
+            <div class="pt">Hệ thống file <span id="fsMode" style="color:#6d8c7c;text-transform:none;"></span></div>
+            <div class="tree" id="tree"></div>
+
+            <div class="pt">Hệ thống</div>
+            <div class="info" id="sysBox">Đang lấy thông tin…</div>
+
+            <div class="pt">Lệnh nhanh</div>
+            <div class="cmds" id="cmdList"></div>
+
+            <div class="pt">Tùy chọn</div>
+            <div class="row"><label>Người dùng</label><input id="optUser" value="guest"></div>
+            <div class="row"><label>Máy</label><input id="optHost" value="rune"></div>
+            <div class="row"><label>Backend</label><select id="optMode"><option value="auto">Tự động</option><option value="virtual">Shell ảo</option><option value="backend">C++ /api/cli</option></select></div>
+            <div class="row"><label>Timeout</label><input id="optTimeout" type="number" value="15" min="1" max="120"> <span style="color:#6d8c7c;">s</span></div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span id="stCwd">~</span>
+        <span id="stCmds">0 lệnh</span>
+        <span id="stBackend">backend: chưa rõ</span>
+        <span data-status-text>Sẵn sàng</span>
+    </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="terminal.js"></script>
 </body>
 </html>

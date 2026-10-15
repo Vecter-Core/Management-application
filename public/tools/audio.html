@@ -2,80 +2,226 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xAudio - Chỉnh sửa âm thanh</title>
+    <title>xAudio — Biên tập âm thanh</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI", sans-serif; background:#1a1a1a; color:#e0e0e0; height:100vh; display:flex; flex-direction:column; }
-        .topbar { height:40px; background:#00d69c; color:black; display:flex; align-items:center; padding:0 12px; gap:8px; font-size:13px; font-weight:600; }
-        .workspace { flex:1; display:flex; flex-direction:column; padding:20px; gap:20px; }
-        .waveform { flex:1; background:#262626; border-radius:8px; position:relative; overflow:hidden; }
-        .waveform-canvas { width:100%; height:200px; background:linear-gradient(180deg, #1a1a1a, #0d0d0d); position:relative; }
-        .waveform-visual { position:absolute; inset:0; display:flex; align-items:center; gap:2px; padding:0 10px; }
-        .wave-bar { width:3px; background:#00d69c; border-radius:2px; flex:1; }
-        .controls { display:flex; align-items:center; justify-content:center; gap:16px; padding:16px; background:#262626; border-radius:8px; }
-        .ctrl-btn { width:44px; height:44px; border-radius:50%; border:none; background:#333; color:white; font-size:18px; cursor:pointer; }
-        .ctrl-btn.play { background:#00d69c; color:black; width:52px; height:52px; font-size:22px; }
-        .tracks { background:#262626; border-radius:8px; padding:16px; }
-        .track { height:60px; background:#1a1a1a; border-radius:6px; margin-bottom:8px; display:flex; align-items:center; padding:0 10px; gap:10px; position:relative; }
-        .track-name { width:120px; font-size:12px; color:#aaa; }
-        .track-wave { flex:1; height:40px; background:linear-gradient(90deg, #00d69c, #00a87a); border-radius:4px; opacity:0.6; }
-        .track.audio .track-wave { background:linear-gradient(90deg, #00d69c, #00e5b8); }
-        .track.mic .track-wave { background:linear-gradient(90deg, #f59e0b, #d97706); }
-        .effects-panel { display:flex; gap:8px; padding:12px; background:#262626; border-radius:8px; }
-        .effect-btn { padding:8px 14px; background:#333; border:none; color:white; border-radius:6px; cursor:pointer; font-size:12px; }
-        .effect-btn:hover { background:#00d69c; color:black; }
+        :root { --acc:#00e5b8; --bg:#16201f; --bg2:#1d2b29; --bd:#2f4340; --tx:#e6f2ef; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#00e5b8,#00a3a3); color:#00201c; display:flex; align-items:center; padding:0 10px; gap:6px; font-weight:700; flex-shrink:0; }
+        .menu-item { padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:500; color:#00201c; }
+        .menu-item:hover { background:rgba(0,0,0,.16); }
+        .menu-pop { position:fixed; display:none; min-width:230px; background:#1d2b29; border:1px solid #3a5350; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.6); z-index:999; color:#e6f2ef; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--acc); color:#00201c; }
+        .menu-pop span.k { opacity:.65; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #3a5350; margin:4px 2px; }
+        .tbtn { padding:5px 11px; background:rgba(0,0,0,.22); border:1px solid rgba(0,0,0,.25); color:#00201c; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .tbtn:hover { background:rgba(255,255,255,.32); }
+        .toolbar { height:44px; background:var(--bg2); border-bottom:1px solid var(--bd); display:flex; align-items:center; padding:0 10px; gap:5px; flex-shrink:0; flex-wrap:nowrap; overflow-x:auto; }
+        .tb2 { padding:5px 9px; background:#253634; border:1px solid #3a5350; color:#dff3ef; border-radius:5px; cursor:pointer; font-size:12px; white-space:nowrap; font-family:inherit; }
+        .tb2:hover { border-color:var(--acc); color:#fff; }
+        .tb2.rec { background:#3a1420; border-color:#8a2a44; color:#ffb3c4; }
+        .tb2.rec.on { background:#c1123f; color:#fff; animation:blink 1s infinite; }
+        @keyframes blink { 50% { opacity:.55; } }
+        .sep { width:1px; height:24px; background:var(--bd); margin:0 4px; flex-shrink:0; }
+        .workspace { flex:1; display:flex; overflow:hidden; min-height:0; }
+        .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+        #ruler { height:22px; background:#101a19; border-bottom:1px solid var(--bd); position:relative; overflow:hidden; flex-shrink:0; }
+        .tb2.on { background:var(--acc); color:#00201c; border-color:var(--acc); font-weight:700; }
+        #waveWrap { flex:1; position:relative; background:linear-gradient(180deg,#0e1717,#132020); overflow:auto; }
+        #wave { display:block; width:100%; height:100%; cursor:crosshair; }
+        .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:#5f7d78; text-align:center; padding:20px; }
+        .empty b { color:var(--acc); font-size:15px; }
+        .empty button { padding:9px 16px; border-radius:8px; border:1px solid var(--bd); background:#253634; color:#dff3ef; cursor:pointer; font-family:inherit; }
+        .right { width:262px; background:var(--bg2); border-left:1px solid var(--bd); padding:10px; overflow-y:auto; flex-shrink:0; }
+        .pt { font-size:10.5px; text-transform:uppercase; color:#7fa8a1; font-weight:700; margin:12px 0 6px; letter-spacing:.4px; }
+        .pt:first-child { margin-top:0; }
+        .row { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:11.5px; }
+        .row label { width:74px; color:#9dc0ba; flex-shrink:0; }
+        .row input[type=range] { flex:1; accent-color:var(--acc); }
+        .row input[type=number], .row select, .row input[type=text] { flex:1; min-width:0; background:#16211f; border:1px solid #3a5350; color:#fff; padding:4px 6px; border-radius:4px; font-size:11.5px; font-family:inherit; }
+        .row .v { width:44px; text-align:right; font-family:monospace; font-size:11px; color:var(--acc); }
+        .g2 { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+        .g2 button, .g3 button { padding:6px 4px; background:#253634; border:1px solid #3a5350; color:#dff3ef; border-radius:5px; cursor:pointer; font-size:11px; font-family:inherit; }
+        .g2 button:hover, .g3 button:hover { border-color:var(--acc); }
+        .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-bottom:5px; }
+        .g2 button.on, .g3 button.on { background:var(--acc); color:#00201c; border-color:var(--acc); font-weight:700; }
+        .stats { font-family:monospace; font-size:11px; color:#9dc0ba; line-height:1.7; background:#16211f; border:1px solid var(--bd); border-radius:6px; padding:7px 9px; }
+        .stats b { color:var(--acc); font-weight:600; }
+        .statusbar { height:22px; background:#0f1817; border-top:1px solid var(--bd); color:#9dc0ba; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .statusbar [data-status-text] { margin-left:auto; color:var(--acc); }
+        .big { font-family:monospace; font-size:19px; color:#fff; letter-spacing:.5px; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <span>🎵 xAudio CC</span>
-        <div style="margin-left:auto; display:flex; gap:8px; font-weight:normal;">
-            <button style="padding:4px 12px; background:black; color:#00d69c; border:none; border-radius:4px; cursor:pointer;">✨ AI Khử ồn</button>
+        <span>〰 xAudio</span>
+        <div style="display:flex; gap:2px; margin-left:8px;">
+            <div class="menu-item" data-menu="file">Tệp</div>
+            <div class="menu-item" data-menu="edit">Chỉnh sửa</div>
+            <div class="menu-item" data-menu="fx">Hiệu ứng</div>
+            <div class="menu-item" data-menu="gen">Tạo âm</div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="tbtn" data-action="undo">↶</button>
+            <button class="tbtn" data-action="redo">↷</button>
+            <button class="tbtn" data-action="aiAnalyze">✨ AI phân tích</button>
+            <button class="tbtn" data-action="exportWav">⬇ WAV</button>
         </div>
     </div>
+
+    <div class="menu-pop" id="menu-file" data-menu-pop>
+        <div data-action="openFile">Mở file âm thanh… <span class="k">Ctrl+O</span></div>
+        <div data-action="record">● Ghi âm micro <span class="k">Ctrl+R</span></div>
+        <hr>
+        <div data-action="exportWav">Xuất WAV (16-bit) <span class="k">Ctrl+S</span></div>
+        <div data-action="exportSel">Xuất đoạn đang chọn (WAV)</div>
+        <div data-action="saveProject">Lưu dự án (.json + audio)</div>
+    </div>
+    <div class="menu-pop" id="menu-edit" data-menu-pop>
+        <div data-action="undo">Hoàn tác <span class="k">Ctrl+Z</span></div>
+        <div data-action="redo">Làm lại <span class="k">Ctrl+Y</span></div>
+        <hr>
+        <div data-action="play">▶ Phát / ⏸ Dừng <span class="k">Space</span></div>
+        <div data-action="playSel">▶ Phát đoạn chọn <span class="k">Ctrl+Space</span></div>
+        <div data-action="stop">⏹ Dừng về đầu</div>
+        <hr>
+        <div data-action="cut">✂ Cắt đoạn chọn <span class="k">Ctrl+X</span></div>
+        <div data-action="copy">⧉ Sao chép đoạn chọn <span class="k">Ctrl+C</span></div>
+        <div data-action="paste">📋 Dán tại playhead <span class="k">Ctrl+V</span></div>
+        <div data-action="del">Xóa đoạn chọn <span class="k">Del</span></div>
+        <div data-action="trim">Cắt chỉ giữ đoạn chọn <span class="k">Ctrl+T</span></div>
+        <div data-action="selAll">Chọn tất cả <span class="k">Ctrl+A</span></div>
+        <div data-action="clearSel">Bỏ chọn</div>
+        <hr>
+        <div data-action="fadeIn">Fade in đoạn chọn</div>
+        <div data-action="fadeOut">Fade out đoạn chọn</div>
+        <div data-action="reverse">Đảo ngược đoạn chọn</div>
+        <div data-action="silence">Chèn im lặng vào đoạn chọn</div>
+        <div data-action="normalize">Chuẩn hóa biên độ (normalize)</div>
+        <div data-action="gain">Chỉnh gain (dB)…</div>
+        <div data-action="removeDc">Bỏ lệch DC</div>
+        <div data-action="trimSilence">Cắt im lặng 2 đầu</div>
+    </div>
+    <div class="menu-pop" id="menu-fx" data-menu-pop>
+        <div data-action="bakeEq">Nướng EQ vào audio</div>
+        <div data-action="bakeReverb">Nướng Reverb</div>
+        <div data-action="bakeDelay">Nướng Delay</div>
+        <div data-action="bakeDistort">Nướng Distortion</div>
+        <div data-action="bakeCompress">Nướng Compressor</div>
+        <div data-action="bakeAll">Nướng toàn bộ chuỗi hiệu ứng</div>
+        <hr>
+        <div data-action="denoise">Khử ồn (gate tần số thấp)</div>
+        <div data-action="pitchUp">Tăng pitch +2 bán cung</div>
+        <div data-action="pitchDown">Giảm pitch −2 bán cung</div>
+        <div data-action="speedUp">Tăng tốc ×1.25 (giữ pitch)</div>
+        <div data-action="slowDown">Chậm ×0.8 (giữ pitch)</div>
+        <div data-action="toMono">Chuyển sang Mono</div>
+        <div data-action="stereoWiden">Mở rộng stereo</div>
+    </div>
+    <div class="menu-pop" id="menu-gen" data-menu-pop>
+        <div data-action="tone">Tạo sóng sin/vuông/răng cưa…</div>
+        <div data-action="noise">Tạo nhiễu trắng</div>
+        <div data-action="silenceGen">Tạo im lặng (theo giây)</div>
+        <div data-action="chord">Tạo hợp âm 3 nốt</div>
+        <div data-action="sweep">Tạo sweep tần số</div>
+        <div data-action="beat">Tạo nhịp trống 4/4</div>
+        <div data-action="appendTone">Nối sóng vào cuối</div>
+    </div>
+
+    <div class="toolbar">
+        <button class="tb2" data-action="openFile">📂 Mở</button>
+        <button class="tb2 rec" data-action="record" id="recBtn">● Ghi âm</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="stop" title="Dừng (về đầu)">⏹</button>
+        <button class="tb2" data-action="play" title="Phát/Dừng (Space)" id="playBtn" style="min-width:46px;">▶</button>
+        <button class="tb2" data-action="playSel" title="Phát đoạn chọn">▶|…|</button>
+        <button class="tb2" data-action="loop" id="loopBtn" title="Lặp">🔁</button>
+        <span class="big" id="timeDisp">00:00.00</span>
+        <div class="sep"></div>
+        <button class="tb2" data-action="cut">✂</button>
+        <button class="tb2" data-action="copy">⧉</button>
+        <button class="tb2" data-action="paste">📋</button>
+        <button class="tb2" data-action="del">🗑</button>
+        <button class="tb2" data-action="trim">⤢ Cắt giữ đoạn chọn</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="fadeIn">↗ Fade in</button>
+        <button class="tb2" data-action="fadeOut">↘ Fade out</button>
+        <button class="tb2" data-action="normalize">≋ Normalize</button>
+        <button class="tb2" data-action="reverse">⇄ Đảo</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="zoomIn">🔍＋</button>
+        <button class="tb2" data-action="zoomOut">🔍−</button>
+        <button class="tb2" data-action="zoomFit">⤾ Vừa</button>
+        <div class="sep"></div>
+        <button class="tb2" data-action="exportWav">⬇ WAV</button>
+    </div>
+
     <div class="workspace">
-        <div class="waveform">
-            <div style="padding:16px; font-size:13px; color:#aaa;">Waveform Editor</div>
-            <div class="waveform-canvas">
-                <div class="waveform-visual" id="waveVis"></div>
+        <div class="main">
+            <div id="ruler"></div>
+            <div id="waveWrap">
+                <canvas id="wave"></canvas>
+                <div class="empty" id="emptyBox">
+                    <b>Chưa có âm thanh</b>
+                    <div style="font-size:12.5px;max-width:420px;">Mở file MP3/WAV/OGG/M4A, ghi âm bằng micro, kéo-thả file vào đây, hoặc tạo sóng/nhạc ở menu "Tạo âm". Mọi xử lý đều chạy thật trong trình duyệt.</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                        <button data-action="openFile">📂 Mở file</button>
+                        <button data-action="record">● Ghi âm</button>
+                        <button data-action="tone">♪ Tạo sóng</button>
+                        <button data-action="beat">🥁 Tạo nhịp trống</button>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="controls">
-            <button class="ctrl-btn">⏮</button>
-            <button class="ctrl-btn">⏪</button>
-            <button class="ctrl-btn play" onclick="this.textContent = this.textContent === '▶' ? '⏸' : '▶'">▶</button>
-            <button class="ctrl-btn">⏩</button>
-            <button class="ctrl-btn">⏺️</button>
-            <span style="font-family:monospace; margin:0 16px;">00:00:00 / 00:03:45</span>
-            <input type="range" style="flex:1; max-width:300px;">
-        </div>
-        <div class="effects-panel">
-            <button class="effect-btn">🔇 Khử ồn</button>
-            <button class="effect-btn">📢 Chuẩn hóa âm lượng</button>
-            <button class="effect-btn">🎚️ EQ</button>
-            <button class="effect-btn">🎤 Auto Tune</button>
-            <button class="effect-btn">🎵 Nhạc nền</button>
-            <button class="effect-btn">✂️ Cắt</button>
-        </div>
-        <div class="tracks">
-            <div class="track audio">
-                <span class="track-name">🎵 Nhạc nền</span>
-                <div class="track-wave"></div>
+
+        <div class="right">
+            <div class="pt">Thông tin</div>
+            <div class="stats" id="stats">Chưa tải audio.</div>
+
+            <div class="pt">Phát</div>
+            <div class="row"><label>Âm lượng</label><input type="range" id="vol" min="0" max="150" value="100"><span class="v" id="volV">100%</span></div>
+            <div class="row"><label>Pan</label><input type="range" id="pan" min="-100" max="100" value="0"><span class="v" id="panV">C</span></div>
+            <div class="row"><label>Tốc độ</label><input type="range" id="rate" min="25" max="200" value="100"><span class="v" id="rateV">1.00×</span></div>
+
+            <div class="pt">EQ 5 dải</div>
+            <div class="row"><label>60 Hz</label><input type="range" id="eq0" min="-18" max="18" value="0"><span class="v" id="eq0V">0</span></div>
+            <div class="row"><label>250 Hz</label><input type="range" id="eq1" min="-18" max="18" value="0"><span class="v" id="eq1V">0</span></div>
+            <div class="row"><label>1 kHz</label><input type="range" id="eq2" min="-18" max="18" value="0"><span class="v" id="eq2V">0</span></div>
+            <div class="row"><label>4 kHz</label><input type="range" id="eq3" min="-18" max="18" value="0"><span class="v" id="eq3V">0</span></div>
+            <div class="row"><label>12 kHz</label><input type="range" id="eq4" min="-18" max="18" value="0"><span class="v" id="eq4V">0</span></div>
+            <div class="g3"><button data-action="eqFlat">EQ phẳng</button><button data-action="eqVoice">Giọng nói</button><button data-action="eqBass">Bass mạnh</button></div>
+
+            <div class="pt">Hiệu ứng</div>
+            <div class="g2" style="margin-bottom:6px;">
+                <button data-action="fx" data-arg="reverb" id="fxReverb">Reverb</button>
+                <button data-action="fx" data-arg="delay" id="fxDelay">Delay</button>
+                <button data-action="fx" data-arg="distort" id="fxDistort">Distortion</button>
+                <button data-action="fx" data-arg="compress" id="fxCompress">Compressor</button>
             </div>
-            <div class="track mic">
-                <span class="track-name">🎤 Giọng nói</span>
-                <div class="track-wave" style="width:60%;"></div>
-            </div>
+            <div class="row"><label>Reverb</label><input type="range" id="revAmt" min="0" max="100" value="35"><span class="v" id="revAmtV">35</span></div>
+            <div class="row"><label>Delay</label><input type="range" id="delAmt" min="0" max="100" value="30"><span class="v" id="delAmtV">30</span></div>
+            <div class="row"><label>Drive</label><input type="range" id="distAmt" min="0" max="100" value="20"><span class="v" id="distAmtV">20</span></div>
+            <div class="btnrow g2"><button data-action="bakeAll">🔥 Nướng tất cả vào audio</button><button data-action="resetFx">↺ Bỏ hiệu ứng</button></div>
+
+            <div class="pt">Tạo âm</div>
+            <div class="row"><label>Tần số</label><input type="number" id="gFreq" value="440" min="20" max="20000"></div>
+            <div class="row"><label>Giây</label><input type="number" id="gDur" value="2" min="0.05" max="60" step="0.05"></div>
+            <div class="row"><label>Dạng sóng</label><select id="gType"><option value="sine">Sin</option><option value="square">Vuông</option><option value="sawtooth">Răng cưa</option><option value="triangle">Tam giác</option></select></div>
+            <div class="g2"><button data-action="tone">♪ Tạo sóng</button><button data-action="appendTone">＋ Nối vào cuối</button></div>
         </div>
     </div>
-    <script>
-        const waveVis = document.getElementById('waveVis');
-        for (let i = 0; i < 200; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'wave-bar';
-            bar.style.height = (Math.random()*160+10) + 'px';
-            waveVis.appendChild(bar);
-        }
-    </script>
+
+    <div class="statusbar">
+        <span id="stFile">Chưa có file</span>
+        <span id="stSel">Chưa chọn vùng</span>
+        <span id="stZoom">Zoom: vừa</span>
+        <span data-status-text>Sẵn sàng</span>
+    </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="audio.js"></script>
 </body>
 </html>

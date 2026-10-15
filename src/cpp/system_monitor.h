@@ -20,6 +20,7 @@ private:
     void read_cpu_name();
     void read_gpu_info();
     void read_disk_io();
+    void read_disk_space();
     void read_network_io();
 
     SystemInfo info{};

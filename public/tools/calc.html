@@ -2,68 +2,332 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>xCalc - Máy tính</title>
+    <title>xCalc — Máy tính &amp; công cụ toán</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI", sans-serif; background:#1a1a1a; display:flex; align-items:center; justify-content:center; height:100vh; }
-        .calc { background:#262626; border-radius:16px; padding:20px; box-shadow:0 10px 40px rgba(0,0,0,0.5); width:360px; }
-        .display { background:#1a1a1a; color:white; padding:24px; border-radius:12px; font-size:36px; text-align:right; margin-bottom:16px; font-family:monospace; overflow:hidden; min-height:90px; display:flex; align-items:flex-end; justify-content:flex-end; }
-        .buttons { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-        .btn { padding:18px; border:none; border-radius:12px; font-size:18px; cursor:pointer; font-weight:600; }
-        .btn.num { background:#3a3a3a; color:white; }
-        .btn.op { background:#ff9500; color:white; }
-        .btn.fn { background:#5a5a5a; color:white; }
-        .btn:hover { filter:brightness(1.2); }
-        .btn.zero { grid-column: span 2; }
+        :root { --acc:#8b5cf6; --bg:#17171d; --bg2:#212129; --bd:#34343f; --tx:#eeeef4; }
+        body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; }
+        .topbar { height:38px; background:linear-gradient(90deg,#8b5cf6,#4c1d95); color:#fff; display:flex; align-items:center; padding:0 10px; gap:6px; font-weight:700; flex-shrink:0; }
+        .menu-item { padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:500; }
+        .menu-item:hover { background:rgba(0,0,0,.25); }
+        .menu-pop { position:fixed; display:none; min-width:230px; background:#212129; border:1px solid #43434f; border-radius:8px; padding:5px; box-shadow:0 12px 32px rgba(0,0,0,.6); z-index:999; }
+        .menu-pop.show { display:block; }
+        .menu-pop div { padding:7px 10px; border-radius:5px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; gap:14px; }
+        .menu-pop div:hover { background:var(--acc); }
+        .menu-pop span.k { opacity:.65; font-size:11px; }
+        .menu-pop hr { border:none; border-top:1px solid #3a3a45; margin:4px 2px; }
+        .tbtn { padding:5px 11px; background:rgba(0,0,0,.25); border:1px solid rgba(0,0,0,.3); color:#fff; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .tbtn:hover { background:rgba(255,255,255,.22); }
+        .tabs { display:flex; gap:4px; background:var(--bg2); border-bottom:1px solid var(--bd); padding:6px 10px; flex-shrink:0; flex-wrap:wrap; }
+        .tabs button { padding:6px 14px; background:#1b1b22; border:1px solid var(--bd); color:#b6b6c4; border-radius:7px; cursor:pointer; font-size:12.5px; font-family:inherit; }
+        .tabs button.on { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+        .body { flex:1; overflow:auto; padding:14px; display:none; }
+        .body.on { display:block; }
+        .calcwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; }
+        .calccol { flex:1; min-width:330px; max-width:520px; }
+        #expr { width:100%; background:#101016; border:1px solid var(--bd); border-radius:10px 10px 0 0; padding:10px 14px; font-family:Consolas,monospace; font-size:14px; color:#9a9ab0; min-height:40px; word-break:break-all; }
+        #result { width:100%; background:#101016; border:1px solid var(--bd); border-top:none; border-radius:0 0 10px 10px; padding:8px 14px 14px; font-family:Consolas,monospace; font-size:30px; color:#fff; text-align:right; word-break:break-all; min-height:56px; }
+        #result.err { color:#ff6b81; font-size:16px; }
+        .keys { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-top:10px; }
+        .keys button { padding:11px 2px; background:#26262f; border:1px solid #3b3b47; color:#e8e8f0; border-radius:7px; cursor:pointer; font-size:13.5px; font-family:inherit; }
+        .keys button:hover { border-color:var(--acc); background:#2d2d38; }
+        .keys button.op { background:#2f2a44; color:#c4b5fd; font-weight:700; }
+        .keys button.eq { background:var(--acc); color:#fff; font-weight:800; }
+        .keys button.fn { font-size:11.5px; color:#a5b4fc; }
+        .keys button.danger { color:#ff8fa3; }
+        .side { width:250px; flex-shrink:0; }
+        .card { background:var(--bg2); border:1px solid var(--bd); border-radius:10px; padding:11px; margin-bottom:12px; }
+        .card h4 { font-size:11px; text-transform:uppercase; color:#9a9ab0; letter-spacing:.5px; margin-bottom:8px; }
+        .hist { max-height:230px; overflow-y:auto; font-family:Consolas,monospace; font-size:11.5px; }
+        .hist div { padding:4px 6px; border-radius:5px; cursor:pointer; color:#c8c8d8; border-bottom:1px solid #2a2a34; }
+        .hist div:hover { background:#2c2c38; color:#fff; }
+        .hist b { color:var(--acc); }
+        .memrow { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+        .memrow button { padding:6px; background:#26262f; border:1px solid #3b3b47; color:#ddd; border-radius:6px; cursor:pointer; font-size:11.5px; font-family:inherit; }
+        .memrow button:hover { border-color:var(--acc); }
+        #memVal { font-family:monospace; font-size:12px; color:#a5b4fc; text-align:center; margin-top:6px; word-break:break-all; }
+        .row { display:flex; align-items:center; gap:7px; margin-bottom:7px; font-size:12px; }
+        .row label { width:96px; color:#9a9ab0; flex-shrink:0; }
+        .row input, .row select { flex:1; min-width:0; background:#1b1b22; border:1px solid #3b3b47; color:#fff; padding:6px 8px; border-radius:6px; font-size:12.5px; font-family:inherit; }
+        .row input[type=number] { font-family:Consolas,monospace; }
+        .g2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+        .g2 button, .g3 button, .btn { padding:7px 6px; background:#26262f; border:1px solid #3b3b47; color:#e8e8f0; border-radius:7px; cursor:pointer; font-size:12px; font-family:inherit; }
+        .g2 button:hover, .g3 button:hover, .btn:hover { border-color:var(--acc); }
+        .btn.acc { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:700; }
+        .out { background:#101016; border:1px solid var(--bd); border-radius:8px; padding:10px; font-family:Consolas,monospace; font-size:12.5px; color:#d8d8ea; white-space:pre-wrap; word-break:break-word; line-height:1.7; }
+        .out b { color:var(--acc); }
+        table.tbl { width:100%; border-collapse:collapse; font-size:12px; }
+        table.tbl td, table.tbl th { padding:5px 7px; border-bottom:1px solid #2c2c36; text-align:left; font-family:Consolas,monospace; }
+        table.tbl th { color:#9a9ab0; font-family:"Segoe UI"; font-size:11px; text-transform:uppercase; }
+        table.tbl tr:hover td { background:#26262f; }
+        #plot { width:100%; height:430px; background:#0f0f15; border:1px solid var(--bd); border-radius:10px; cursor:crosshair; display:block; touch-action:none; }
+        .statusbar { height:22px; background:#12121a; border-top:1px solid var(--bd); color:#9a9ab0; font-size:11.5px; display:flex; align-items:center; padding:0 12px; gap:18px; flex-shrink:0; }
+        .statusbar [data-status-text] { margin-left:auto; color:var(--acc); }
+        .flex { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+        .flex > div { flex:1; min-width:300px; }
+        .sw2 { display:flex; gap:5px; align-items:center; }
+        .sw2 button { padding:5px 9px; background:#26262f; border:1px solid #3b3b47; color:#ccc; border-radius:6px; cursor:pointer; font-size:11.5px; font-family:inherit; }
+        .sw2 button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
     </style>
 </head>
 <body>
-    <div class="calc">
-        <div class="display" id="display">0</div>
-        <div class="buttons">
-            <button class="btn fn">AC</button>
-            <button class="btn fn">±</button>
-            <button class="btn fn">%</button>
-            <button class="btn op">÷</button>
-            <button class="btn num">7</button>
-            <button class="btn num">8</button>
-            <button class="btn num">9</button>
-            <button class="btn op">×</button>
-            <button class="btn num">4</button>
-            <button class="btn num">5</button>
-            <button class="btn num">6</button>
-            <button class="btn op">-</button>
-            <button class="btn num">1</button>
-            <button class="btn num">2</button>
-            <button class="btn num">3</button>
-            <button class="btn op">+</button>
-            <button class="btn num zero">0</button>
-            <button class="btn num">.</button>
-            <button class="btn op">=</button>
+    <div class="topbar">
+        <span>🧮 xCalc</span>
+        <div style="display:flex;gap:2px;margin-left:8px;">
+            <div class="menu-item" data-menu="edit">Chỉnh sửa</div>
+            <div class="menu-item" data-menu="view">Chế độ</div>
+            <div class="menu-item" data-menu="tool">Công cụ</div>
+            <div class="menu-item" data-menu="ai">✨ AI</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;">
+            <button class="tbtn" id="angleBtn" data-action="toggleAngle">DEG</button>
+            <button class="tbtn" data-action="copyResult">⧉ Kết quả</button>
+            <button class="tbtn" data-action="aiSolve">✨ AI giải</button>
         </div>
     </div>
-    <script>
-        const display = document.getElementById('display');
-        let current = '0', prev = null, op = null;
-        function update() { display.textContent = current; }
-        document.querySelectorAll('.btn').forEach(b => {
-            b.addEventListener('click', () => {
-                const t = b.textContent;
-                if (t >= '0' && t <= '9') { current = current === '0' ? t : current + t; }
-                else if (t === '.') { if (!current.includes('.')) current += '.'; }
-                else if (t === 'AC') { current = '0'; prev = null; op = null; }
-                else if (['+','-','×','÷'].includes(t)) { prev = current; op = t; current = '0'; }
-                else if (t === '=') {
-                    const a = parseFloat(prev), b = parseFloat(current);
-                    let r = 0;
-                    if (op === '+') r = a+b; if (op === '-') r = a-b;
-                    if (op === '×') r = a*b; if (op === '÷') r = a/b;
-                    current = r.toString();
-                } else if (t === '±') { current = (parseFloat(current)*-1).toString(); }
-                else if (t === '%') { current = (parseFloat(current)/100).toString(); }
-                update();
-            });
-        });
-    </script>
+
+    <div class="menu-pop" id="menu-edit" data-menu-pop>
+        <div data-action="copyExpr">Chép biểu thức</div>
+        <div data-action="copyResult">Chép kết quả <span class="k">Ctrl+C</span></div>
+        <div data-action="ansInsert">Dùng lại kết quả (ANS) <span class="k">A</span></div>
+        <div data-action="clearAll">Xóa hết (C) <span class="k">Esc</span></div>
+        <div data-action="clearEntry">Xóa ô nhập (CE)</div>
+        <div data-action="clearHistory">Xóa lịch sử</div>
+    </div>
+    <div class="menu-pop" id="menu-view" data-menu-pop>
+        <div data-action="toggleAngle">Đổi DEG ⇄ RAD</div>
+        <div data-action="second" id="m2nd">Hàm bậc 2 (2nd)</div>
+        <div data-action="bigFont">Chữ to/nhỏ</div>
+        <div data-action="tab" data-arg="calc">Máy tính</div>
+        <div data-action="tab" data-arg="plot">Đồ thị hàm số</div>
+        <div data-action="tab" data-arg="unit">Đổi đơn vị</div>
+        <div data-action="tab" data-arg="base">Hệ đếm &amp; bit</div>
+        <div data-action="tab" data-arg="date">Ngày tháng</div>
+    </div>
+    <div class="menu-pop" id="menu-tool" data-menu-pop>
+        <div data-action="tab" data-arg="plot">Vẽ đồ thị hàm số</div>
+        <div data-action="findRoot">Tìm nghiệm (từ đồ thị)</div>
+        <div data-action="integrate">Tính tích phân ∫f(x)dx</div>
+        <div data-action="derivative">Tính đạo hàm f'(x₀)</div>
+        <div data-action="percent">Tính phần trăm</div>
+        <div data-action="gcdlcm">ƯCLN &amp; BCNN</div>
+        <div data-action="primeCheck">Kiểm tra số nguyên tố</div>
+        <div data-action="factorize">Phân tích thừa số nguyên tố</div>
+        <div data-action="solveQuad">Giải phương trình bậc 2</div>
+        <div data-action="stats">Thống kê dãy số</div>
+    </div>
+    <div class="menu-pop" id="menu-ai" data-menu-pop>
+        <div data-action="aiSolve">✨ AI giải bài toán (có lời giải)</div>
+        <div data-action="aiExplain">✨ AI giải thích biểu thức hiện tại</div>
+        <div data-action="aiPlot">✨ AI gợi ý hàm để vẽ</div>
+    </div>
+
+    <div class="tabs">
+        <button class="on" data-action="tab" data-arg="calc">🧮 Máy tính</button>
+        <button data-action="tab" data-arg="plot">📈 Đồ thị</button>
+        <button data-action="tab" data-arg="unit">📏 Đổi đơn vị</button>
+        <button data-action="tab" data-arg="base">🔢 Hệ đếm</button>
+        <button data-action="tab" data-arg="date">📅 Ngày tháng</button>
+    </div>
+
+    <!-- ============ MÁY TÍNH ============ -->
+    <div class="body on" id="tab-calc">
+        <div class="calcwrap">
+            <div class="calccol">
+                <div id="expr">&nbsp;</div>
+                <div id="result">0</div>
+                <div class="keys" id="keys"></div>
+            </div>
+            <div class="side">
+                <div class="card">
+                    <h4>Bộ nhớ</h4>
+                    <div class="memrow">
+                        <button data-action="mc">MC</button><button data-action="mr">MR</button>
+                        <button data-action="mplus">M+</button><button data-action="mminus">M−</button>
+                    </div>
+                    <div id="memVal">M = 0</div>
+                </div>
+                <div class="card">
+                    <h4>Lịch sử <span style="float:right;cursor:pointer;color:#ff8fa3;" data-action="clearHistory">xóa</span></h4>
+                    <div class="hist" id="hist"><div style="color:#666;">Chưa có phép tính nào</div></div>
+                </div>
+                <div class="card">
+                    <h4>Hằng số</h4>
+                    <div class="g2">
+                        <button data-action="const" data-arg="pi">π</button><button data-action="const" data-arg="e">e</button>
+                        <button data-action="const" data-arg="phi">φ = 1.618</button><button data-action="const" data-arg="sqrt2">√2</button>
+                        <button data-action="const" data-arg="c">c (ánh sáng)</button><button data-action="const" data-arg="g">g = 9.80665</button>
+                        <button data-action="const" data-arg="NA">Nₐ</button><button data-action="const" data-arg="k">k Boltzmann</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ ĐỒ THỊ ============ -->
+    <div class="body" id="tab-plot">
+        <div class="flex">
+            <div style="flex:2.2;min-width:420px;">
+                <canvas id="plot" width="900" height="430"></canvas>
+                <div style="color:#9a9ab0;font-size:11.5px;margin-top:5px;" id="plotHint">Kéo chuột trên đồ thị để di chuyển · Ctrl+lăn chuột để phóng · bấm để xem tọa độ</div>
+            </div>
+            <div style="flex:1;min-width:280px;">
+                <div class="card">
+                    <h4>Hàm số (dùng x)</h4>
+                    <div class="row"><label style="width:22px;color:#f472b6;">f₁</label><input id="f1" value="sin(x) * x"></div>
+                    <div class="row"><label style="width:22px;color:#38bdf8;">f₂</label><input id="f2" value=""></div>
+                    <div class="row"><label style="width:22px;color:#34d399;">f₃</label><input id="f3" value=""></div>
+                    <div class="g2" style="margin-top:6px;">
+                        <button class="btn acc" data-action="drawPlot">📈 Vẽ</button>
+                        <button data-action="resetPlot">↺ Khung mặc định</button>
+                    </div>
+                    <div class="g3" style="margin-top:6px;">
+                        <button data-action="plotZoom" data-arg="in">🔍＋</button>
+                        <button data-action="plotZoom" data-arg="out">🔍−</button>
+                        <button data-action="plotSquare">⊿ Tỉ lệ 1:1</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4>Khoảng hiển thị</h4>
+                    <div class="g2">
+                        <div class="row" style="margin:0;"><label style="width:34px;">x từ</label><input type="number" id="xmin" value="-10" step="1"></div>
+                        <div class="row" style="margin:0;"><label style="width:28px;">đến</label><input type="number" id="xmax" value="10" step="1"></div>
+                        <div class="row" style="margin:0;"><label style="width:34px;">y từ</label><input type="number" id="ymin" value="-10" step="1"></div>
+                        <div class="row" style="margin:0;"><label style="width:28px;">đến</label><input type="number" id="ymax" value="10" step="1"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4>Phân tích</h4>
+                    <div class="row"><label>x₀</label><input type="number" id="x0" value="0" step="0.1"></div>
+                    <div class="g2">
+                        <button data-action="evalAt">f(x₀)</button>
+                        <button data-action="derivative">f′(x₀)</button>
+                    </div>
+                    <div class="row" style="margin-top:7px;"><label>∫ từ a</label><input type="number" id="ia" value="0" step="0.5"></div>
+                    <div class="row"><label>đến b</label><input type="number" id="ib" value="3.14159" step="0.5"></div>
+                    <div class="g2">
+                        <button data-action="integrate">∫ Tính tích phân</button>
+                        <button data-action="findRoot">Tìm nghiệm</button>
+                    </div>
+                    <div class="g2" style="margin-top:6px;">
+                        <button data-action="valueTable">Bảng giá trị</button>
+                        <button data-action="exportPlot">⬇ PNG đồ thị</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card" style="margin-top:12px;"><h4>Kết quả phân tích</h4><div class="out" id="plotOut">Chưa có kết quả.</div></div>
+    </div>
+
+    <!-- ============ ĐỔI ĐƠN VỊ ============ -->
+    <div class="body" id="tab-unit">
+        <div class="flex">
+            <div>
+                <div class="card">
+                    <h4>Đổi đơn vị</h4>
+                    <div class="row"><label>Loại</label><select id="uCat"></select></div>
+                    <div class="row"><label>Giá trị</label><input type="number" id="uVal" value="1" step="any"></div>
+                    <div class="row"><label>Từ</label><select id="uFrom"></select></div>
+                    <div class="row"><label>Sang</label><select id="uTo"></select></div>
+                    <div class="out" id="uOut" style="font-size:16px;text-align:center;">—</div>
+                    <div class="g3" style="margin-top:8px;">
+                        <button data-action="swapUnits">⇄ Đổi chiều</button>
+                        <button data-action="copyUnit">⧉ Chép</button>
+                        <button data-action="toCalc">→ Đưa vào máy tính</button>
+                    </div>
+                </div>
+            </div>
+            <div style="flex:1.3;">
+                <div class="card"><h4>Tất cả đơn vị</h4><div style="max-height:420px;overflow:auto;"><table class="tbl" id="uTable"></table></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ HỆ ĐẾM ============ -->
+    <div class="body" id="tab-base">
+        <div class="flex">
+            <div>
+                <div class="card">
+                    <h4>Chuyển hệ đếm</h4>
+                    <div class="row"><label>Nhập số</label><input id="bIn" value="255"></div>
+                    <div class="row"><label>Hệ gốc</label><select id="bBase"><option value="10">Thập phân (10)</option><option value="16">Hex (16)</option><option value="2">Nhị phân (2)</option><option value="8">Bát phân (8)</option></select></div>
+                    <div class="g2"><button class="btn acc" data-action="convertBase">Chuyển đổi</button><button data-action="copyBase">⧉ Chép tất cả</button></div>
+                    <div class="out" id="bOut">—</div>
+                </div>
+                <div class="card">
+                    <h4>Phép toán bit (32-bit)</h4>
+                    <div class="row"><label>Số A</label><input id="bitA" value="12"></div>
+                    <div class="row"><label>Số B</label><input id="bitB" value="10"></div>
+                    <div class="g3">
+                        <button data-action="bitop" data-arg="and">AND</button><button data-action="bitop" data-arg="or">OR</button><button data-action="bitop" data-arg="xor">XOR</button>
+                        <button data-action="bitop" data-arg="not">NOT A</button><button data-action="bitop" data-arg="shl">A « B</button><button data-action="bitop" data-arg="shr">A » B</button>
+                    </div>
+                    <div class="out" id="bitOut">—</div>
+                </div>
+            </div>
+            <div style="flex:1.2;">
+                <div class="card">
+                    <h4>Công cụ số học</h4>
+                    <div class="g2">
+                        <button data-action="percent">Phần trăm</button>
+                        <button data-action="gcdlcm">ƯCLN / BCNN</button>
+                        <button data-action="primeCheck">Số nguyên tố</button>
+                        <button data-action="factorize">Phân tích thừa số</button>
+                        <button data-action="solveQuad">PT bậc 2</button>
+                        <button data-action="stats">Thống kê dãy số</button>
+                        <button data-action="roundTool">Làm tròn số</button>
+                        <button data-action="randomNum">Số ngẫu nhiên</button>
+                    </div>
+                    <div class="out" id="numOut" style="margin-top:8px;">Chọn một công cụ ở trên.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ NGÀY THÁNG ============ -->
+    <div class="body" id="tab-date">
+        <div class="flex">
+            <div>
+                <div class="card">
+                    <h4>Khoảng cách giữa 2 ngày</h4>
+                    <div class="row"><label>Từ ngày</label><input type="date" id="d1"></div>
+                    <div class="row"><label>Đến ngày</label><input type="date" id="d2"></div>
+                    <div class="g2"><button class="btn acc" data-action="dateDiff">Tính khoảng cách</button><button data-action="dateToday">Hôm nay</button></div>
+                    <div class="out" id="dOut" style="margin-top:8px;">—</div>
+                </div>
+            </div>
+            <div>
+                <div class="card">
+                    <h4>Cộng / trừ ngày</h4>
+                    <div class="row"><label>Ngày gốc</label><input type="date" id="d3"></div>
+                    <div class="row"><label>Số ngày</label><input type="number" id="dN" value="30" step="1"></div>
+                    <div class="g2"><button data-action="dateAdd">＋ Cộng</button><button data-action="dateSub">− Trừ</button></div>
+                    <div class="out" id="dOut2" style="margin-top:8px;">—</div>
+                </div>
+                <div class="card">
+                    <h4>Thời gian bấm giờ</h4>
+                    <div class="out" id="stopwatch" style="font-size:22px;text-align:center;">00:00.00</div>
+                    <div class="g3" style="margin-top:8px;">
+                        <button data-action="swStart" id="swBtn">▶ Bắt đầu</button>
+                        <button data-action="swLap">⚑ Vòng</button>
+                        <button data-action="swReset">↺ Xóa</button>
+                    </div>
+                    <div class="out" id="swLaps" style="margin-top:8px;font-size:11.5px;">Chưa có vòng nào</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span id="stAngle">DEG</span>
+        <span id="stMem">M = 0</span>
+        <span id="stLast">—</span>
+        <span data-status-text>Sẵn sàng</span>
+    </div>
+
+    <script src="../core.js"></script>
+    <script src="toolkit.js"></script>
+    <script src="calc.js"></script>
 </body>
 </html>
